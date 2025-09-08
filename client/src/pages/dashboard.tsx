@@ -131,7 +131,17 @@ export default function Dashboard() {
     <div className="p-6">
       {/* Search Header */}
       <div className="mb-6">
-        <h3 className="text-lg font-medium text-foreground mb-2">Find Your Items</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-medium text-foreground">Find Your Items</h3>
+          <Button 
+            onClick={() => window.location.href = "/add-item"}
+            className="bg-primary hover:bg-primary/90"
+            data-testid="button-add-item-header"
+          >
+            <i className="fas fa-plus mr-2"></i>
+            Add Item
+          </Button>
+        </div>
         <p className="text-muted-foreground">Search by description, brand, size, color, or any other details</p>
       </div>
 

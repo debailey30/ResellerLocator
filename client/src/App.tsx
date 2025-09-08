@@ -49,12 +49,13 @@ function AppContent() {
             {/* Quick Add Button - only show on non-add-item pages */}
             {location !== "/add-item" && (
               <Button 
-                className="hidden sm:flex items-center space-x-2"
+                className="flex items-center space-x-2"
                 onClick={() => window.location.href = "/add-item"}
                 data-testid="button-quick-add"
               >
                 <i className="fas fa-plus text-sm"></i>
-                <span>Quick Add</span>
+                <span className="hidden sm:inline">Quick Add</span>
+                <span className="sm:hidden">Add</span>
               </Button>
             )}
           </div>
