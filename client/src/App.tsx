@@ -46,15 +46,15 @@ function AppContent() {
             </h2>
           </div>
           <div className="flex items-center space-x-4">
-            {/* Quick Add Button - only show on non-add-item pages */}
-            {location !== "/add-item" && (
+            {/* Quick Add Button - only show on home page */}
+            {location === "/" && (
               <Link href="/add-item">
                 <Button 
                   className="flex items-center space-x-2"
                   data-testid="button-quick-add"
                 >
                   <i className="fas fa-plus text-sm"></i>
-                  <span className="hidden sm:inline">Quick Add</span>
+                  <span className="hidden sm:inline">Add Item</span>
                   <span className="sm:hidden">Add</span>
                 </Button>
               </Link>
