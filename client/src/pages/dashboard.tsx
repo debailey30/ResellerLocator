@@ -146,21 +146,37 @@ export default function Dashboard() {
       </div>
 
       {/* Search Bar */}
-      <div className="relative mb-6">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <i className="fas fa-search text-muted-foreground"></i>
+      <div className="mb-6">
+        <div className="flex space-x-2">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <i className="fas fa-search text-muted-foreground"></i>
+            </div>
+            <Input
+              type="text"
+              placeholder="Search items... (e.g., 'red nike shoes size 9', 'vintage denim jacket')"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setBinSearch("");
+              }}
+              className="pl-10"
+              data-testid="input-search"
+            />
+          </div>
+          <Button 
+            variant="secondary"
+            onClick={() => setSearchQuery("")}
+            disabled={!searchQuery}
+            data-testid="button-clear-search"
+          >
+            <i className="fas fa-times"></i>
+            <span className="hidden sm:inline ml-2">Clear</span>
+          </Button>
         </div>
-        <Input
-          type="text"
-          placeholder="Search items... (e.g., 'red nike shoes size 9', 'vintage denim jacket')"
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setBinSearch("");
-          }}
-          className="pl-10"
-          data-testid="input-search"
-        />
+        <p className="text-xs text-muted-foreground mt-2">
+          Search happens automatically as you type
+        </p>
       </div>
 
       {/* Quick Bin Search */}
