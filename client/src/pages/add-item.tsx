@@ -190,7 +190,6 @@ export default function AddItem() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">Select category</SelectItem>
                             <SelectItem value="clothing">Clothing</SelectItem>
                             <SelectItem value="shoes">Shoes</SelectItem>
                             <SelectItem value="accessories">Accessories</SelectItem>
@@ -217,7 +216,6 @@ export default function AddItem() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">Select condition</SelectItem>
                             <SelectItem value="new">New with Tags</SelectItem>
                             <SelectItem value="like-new">Like New</SelectItem>
                             <SelectItem value="good">Good</SelectItem>
