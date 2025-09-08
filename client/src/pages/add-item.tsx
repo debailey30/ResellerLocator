@@ -129,6 +129,7 @@ export default function AddItem() {
                         <FormControl>
                           <Input
                             {...field}
+                            value={field.value || ""}
                             placeholder="e.g., Nike, Adidas, Levi's"
                             data-testid="input-brand"
                           />
@@ -147,6 +148,7 @@ export default function AddItem() {
                         <FormControl>
                           <Input
                             {...field}
+                            value={field.value || ""}
                             placeholder="e.g., XL, 9, 32x34"
                             data-testid="input-size"
                           />
@@ -165,6 +167,7 @@ export default function AddItem() {
                         <FormControl>
                           <Input
                             {...field}
+                            value={field.value || ""}
                             placeholder="e.g., Black, Navy Blue"
                             data-testid="input-color"
                           />
@@ -180,7 +183,7 @@ export default function AddItem() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Category</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
                           <FormControl>
                             <SelectTrigger data-testid="select-category">
                               <SelectValue placeholder="Select category" />
@@ -207,7 +210,7 @@ export default function AddItem() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Condition</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
                           <FormControl>
                             <SelectTrigger data-testid="select-condition">
                               <SelectValue placeholder="Select condition" />
@@ -258,6 +261,7 @@ export default function AddItem() {
                       <FormControl>
                         <Textarea
                           {...field}
+                          value={field.value || ""}
                           rows={2}
                           placeholder="Any additional notes about the item..."
                           data-testid="input-notes"
