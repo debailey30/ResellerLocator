@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, useLocation, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -48,15 +48,16 @@ function AppContent() {
           <div className="flex items-center space-x-4">
             {/* Quick Add Button - only show on non-add-item pages */}
             {location !== "/add-item" && (
-              <Button 
-                className="flex items-center space-x-2"
-                onClick={() => window.location.href = "/add-item"}
-                data-testid="button-quick-add"
-              >
-                <i className="fas fa-plus text-sm"></i>
-                <span className="hidden sm:inline">Quick Add</span>
-                <span className="sm:hidden">Add</span>
-              </Button>
+              <Link href="/add-item">
+                <Button 
+                  className="flex items-center space-x-2"
+                  data-testid="button-quick-add"
+                >
+                  <i className="fas fa-plus text-sm"></i>
+                  <span className="hidden sm:inline">Quick Add</span>
+                  <span className="sm:hidden">Add</span>
+                </Button>
+              </Link>
             )}
           </div>
         </header>

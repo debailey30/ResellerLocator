@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "wouter";
 import { useSearchItems, useItemsByBin, useDeleteItem, useUpdateItem } from "@/hooks/use-inventory";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -133,14 +134,15 @@ export default function Dashboard() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-medium text-foreground">Find Your Items</h3>
-          <Button 
-            onClick={() => window.location.href = "/add-item"}
-            className="bg-primary hover:bg-primary/90"
-            data-testid="button-add-item-header"
-          >
-            <i className="fas fa-plus mr-2"></i>
-            Add Item
-          </Button>
+          <Link href="/add-item">
+            <Button 
+              className="bg-primary hover:bg-primary/90"
+              data-testid="button-add-item-header"
+            >
+              <i className="fas fa-plus mr-2"></i>
+              Add Item
+            </Button>
+          </Link>
         </div>
         <p className="text-muted-foreground">Search by description, brand, size, color, or any other details</p>
       </div>
