@@ -1,5 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Link } from "wouter";
 import { insertItemSchema, type InsertItem } from "@shared/schema";
 import { useCreateItem } from "@/hooks/use-inventory";
 import { Card, CardContent } from "@/components/ui/card";
@@ -67,7 +68,15 @@ export default function AddItem() {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h3 className="text-lg font-medium text-foreground mb-2">Add New Item</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-medium text-foreground">Add New Item</h3>
+            <Link href="/">
+              <Button variant="outline" data-testid="button-back-to-search">
+                <i className="fas fa-arrow-left mr-2"></i>
+                Back to Search
+              </Button>
+            </Link>
+          </div>
           <p className="text-muted-foreground">Enter the details of your new inventory item</p>
         </div>
 
@@ -271,7 +280,7 @@ export default function AddItem() {
                 />
 
                 {/* Form Actions */}
-                <div className="flex space-x-4">
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
                   <Button
                     type="submit"
                     className="flex-1"
@@ -289,6 +298,17 @@ export default function AddItem() {
                   >
                     Clear
                   </Button>
+                  <Link href="/">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full sm:w-auto"
+                      data-testid="button-back-to-search-bottom"
+                    >
+                      <i className="fas fa-search mr-2"></i>
+                      Back to Search
+                    </Button>
+                  </Link>
                 </div>
               </form>
             </Form>

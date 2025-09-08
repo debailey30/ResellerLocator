@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { Link } from "wouter";
 import { useUploadCSV } from "@/hooks/use-inventory";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,7 +95,15 @@ export default function Upload() {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h3 className="text-lg font-medium text-foreground mb-2">Upload Spreadsheet</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-medium text-foreground">Upload Spreadsheet</h3>
+            <Link href="/">
+              <Button variant="outline" data-testid="button-back-to-search">
+                <i className="fas fa-arrow-left mr-2"></i>
+                Back to Search
+              </Button>
+            </Link>
+          </div>
           <p className="text-muted-foreground">Import multiple items from a CSV file</p>
         </div>
 
