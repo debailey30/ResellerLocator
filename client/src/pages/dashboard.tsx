@@ -357,6 +357,7 @@ export default function Dashboard() {
                           className="min-h-[44px] min-w-[44px] flex items-center justify-center"
                           data-testid={`button-edit-${item.id}`}
                           title="Edit item"
+                          aria-label={`Edit ${item.description}`}
                         >
                           <i className="fas fa-edit"></i>
                         </Button>
@@ -543,6 +544,7 @@ export default function Dashboard() {
                         disabled={markAsSold.isPending}
                         data-testid={`button-mark-sold-${item.id}`}
                         title="Mark as sold"
+                        aria-label={`Mark ${item.description} as sold`}
                       >
                         <i className="fas fa-dollar-sign"></i>
                       </Button>
@@ -556,6 +558,7 @@ export default function Dashboard() {
                       disabled={deleteItem.isPending}
                       data-testid={`button-delete-${item.id}`}
                       title="Delete item"
+                      aria-label={`Delete ${item.description}`}
                     >
                       <i className="fas fa-trash"></i>
                     </Button>
