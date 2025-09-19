@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertItemSchema, updateItemSchema, markSoldSchema } from "@shared/schema";
+import { insertItemSchema, updateItemSchema, markSoldSchema, insertBinSchema, updateBinSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
 
@@ -49,6 +49,29 @@ function generateCSV(items: any[]): string {
   return [csvHeaders, ...csvRows].join('\n');
 }
 
+function generateDefaultBinsData() {
+  // 30 distinct, visually appealing colors for bins (duplicates removed)
+  const colors = [
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+    '#DDA0DD', '#FF9FF3', '#54A0FF', '#5F27CD', '#00D2D3',
+    '#FF9F43', '#EE5A24', '#0ABDE3', '#00CEC9', '#6C5CE7',
+    '#A29BFE', '#FD79A8', '#E17055', '#00B894', '#FDCB6E',
+    '#E84393', '#74B9FF', '#81ECEC', '#FAB1A0', '#32CD32',
+    '#FF7675', '#9B59B6', '#F39C12', '#E67E22', '#55A3FF'
+  ];
+
+  // Validate uniqueness
+  const uniqueColors = [...new Set(colors)];
+  if (uniqueColors.length !== colors.length) {
+    throw new Error('Duplicate colors found in bins data');
+  }
+
+  return Array.from({ length: 30 }, (_, index) => ({
+    name: `Bin-${index + 1}`,
+    color: colors[index]
+  }));
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get all items
   app.get("/api/items", async (req, res) => {
@@ -82,13 +105,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all bins
+  // Get bin stats (default - what frontend expects)
   app.get("/api/bins", async (req, res) => {
+    try {
+      const binStats = await storage.getBinStats();
+      res.json(binStats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch bin stats" });
+    }
+  });
+
+  // Get bin stats (alias for compatibility)
+  app.get("/api/bins/stats", async (req, res) => {
+    try {
+      const binStats = await storage.getBinStats();
+      res.json(binStats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch bin stats" });
+    }
+  });
+
+  // Get all bins (full Bin[] data)
+  app.get("/api/bins/list", async (req, res) => {
     try {
       const bins = await storage.getAllBins();
       res.json(bins);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch bins" });
+    }
+  });
+
+  // Get single bin
+  app.get("/api/bins/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const bin = await storage.getBinById(id);
+      
+      if (!bin) {
+        return res.status(404).json({ message: "Bin not found" });
+      }
+      
+      res.json(bin);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch bin" });
+    }
+  });
+
+  // Create bin
+  app.post("/api/bins", async (req, res) => {
+    try {
+      const validatedData = insertBinSchema.parse(req.body);
+      
+      // Check if bin name already exists
+      const existingBin = await storage.getBinByName(validatedData.name);
+      if (existingBin) {
+        return res.status(400).json({ message: "Bin name already exists" });
+      }
+      
+      const bin = await storage.createBin(validatedData);
+      res.status(201).json(bin);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid bin data", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create bin" });
+    }
+  });
+
+  // Update bin
+  app.patch("/api/bins/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = updateBinSchema.parse(req.body);
+      
+      // Get current bin info
+      const currentBin = await storage.getBinById(id);
+      if (!currentBin) {
+        return res.status(404).json({ message: "Bin not found" });
+      }
+      
+      // If updating name, check constraints
+      if (validatedData.name && validatedData.name !== currentBin.name) {
+        // Check if new name already exists
+        const existingBin = await storage.getBinByName(validatedData.name);
+        if (existingBin && existingBin.id !== id) {
+          return res.status(400).json({ message: "Bin name already exists" });
+        }
+        
+        // Option A: Forbid renaming when items exist in the bin
+        const itemsInBin = await storage.getItemsByBin(currentBin.name);
+        if (itemsInBin.length > 0) {
+          return res.status(400).json({ 
+            message: "Cannot rename bin with existing items. Move items to another bin first.",
+            itemCount: itemsInBin.length
+          });
+        }
+      }
+      
+      const bin = await storage.updateBin(id, validatedData);
+      
+      if (!bin) {
+        return res.status(404).json({ message: "Bin not found" });
+      }
+      
+      res.json(bin);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid bin data", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to update bin" });
+    }
+  });
+
+  // Delete bin
+  app.delete("/api/bins/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Check if bin exists first
+      const existingBin = await storage.getBinById(id);
+      if (!existingBin) {
+        return res.status(404).json({ message: "Bin not found" });
+      }
+      
+      // Check if bin is in use
+      const itemsInBin = await storage.getItemsByBin(existingBin.name);
+      if (itemsInBin.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete bin with items. Move items to another bin first.",
+          itemCount: itemsInBin.length
+        });
+      }
+      
+      const deleted = await storage.deleteBin(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Bin not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete bin" });
     }
   });
 
@@ -283,6 +446,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       res.status(500).json({ message: "Failed to export data" });
+    }
+  });
+
+  // Seed default bins
+  app.post("/api/bins/seed", async (req, res) => {
+    try {
+      // Check if bins already exist
+      const existingBins = await storage.getAllBins();
+      if (existingBins.length > 0) {
+        return res.status(400).json({ 
+          message: "Bins already exist. Clear existing bins first or use individual bin creation.",
+          existingCount: existingBins.length
+        });
+      }
+
+      const defaultBinsData = generateDefaultBinsData();
+      const createdBins = await storage.createMultipleBins(defaultBinsData);
+
+      res.status(201).json({
+        message: "Default bins created successfully",
+        count: createdBins.length,
+        bins: createdBins
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to seed default bins" });
     }
   });
 

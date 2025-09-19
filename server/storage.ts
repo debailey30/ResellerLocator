@@ -1,4 +1,4 @@
-import { type Item, type InsertItem, type UpdateItem, type MarkSoldData } from "@shared/schema";
+import { type Item, type InsertItem, type UpdateItem, type MarkSoldData, type Bin, type InsertBin, type UpdateBin } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -13,17 +13,26 @@ export interface IStorage {
   markAsSold(id: string, soldData: MarkSoldData): Promise<Item | undefined>;
   
   // Bin operations
-  getAllBins(): Promise<Array<{ binLocation: string; itemCount: number; lastUpdated: Date }>>;
+  getAllBins(): Promise<Bin[]>;
+  getBinById(id: string): Promise<Bin | undefined>;
+  createBin(bin: InsertBin): Promise<Bin>;
+  updateBin(id: string, updates: UpdateBin): Promise<Bin | undefined>;
+  deleteBin(id: string): Promise<boolean>;
+  getBinByName(name: string): Promise<Bin | undefined>;
+  getBinStats(): Promise<Array<{ binLocation: string; itemCount: number; lastUpdated: Date }>>;
   
   // Bulk operations
   createMultipleItems(items: InsertItem[]): Promise<Item[]>;
+  createMultipleBins(bins: InsertBin[]): Promise<Bin[]>;
 }
 
 export class MemStorage implements IStorage {
   private items: Map<string, Item>;
+  private bins: Map<string, Bin>;
 
   constructor() {
     this.items = new Map();
+    this.bins = new Map();
   }
 
   async getAllItems(): Promise<Item[]> {
@@ -127,7 +136,66 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async getAllBins(): Promise<Array<{ binLocation: string; itemCount: number; lastUpdated: Date }>> {
+  async getAllBins(): Promise<Bin[]> {
+    return Array.from(this.bins.values()).sort((a, b) => {
+      // Custom sorting to handle numerical order (Bin-1, Bin-2, ..., Bin-10)
+      const aMatch = a.name.match(/Bin-(\d+)/);
+      const bMatch = b.name.match(/Bin-(\d+)/);
+      
+      if (aMatch && bMatch) {
+        const aNum = parseInt(aMatch[1]);
+        const bNum = parseInt(bMatch[1]);
+        return aNum - bNum;
+      }
+      
+      // Fallback to lexicographic for non-standard names
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  async getBinById(id: string): Promise<Bin | undefined> {
+    return this.bins.get(id);
+  }
+
+  async createBin(insertBin: InsertBin): Promise<Bin> {
+    const id = randomUUID();
+    const now = new Date();
+    const bin: Bin = { 
+      ...insertBin, 
+      id,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.bins.set(id, bin);
+    return bin;
+  }
+
+  async updateBin(id: string, updates: UpdateBin): Promise<Bin | undefined> {
+    const existingBin = this.bins.get(id);
+    if (!existingBin) {
+      return undefined;
+    }
+
+    const updatedBin: Bin = {
+      ...existingBin,
+      ...updates,
+      updatedAt: new Date()
+    };
+    
+    this.bins.set(id, updatedBin);
+    return updatedBin;
+  }
+
+  async deleteBin(id: string): Promise<boolean> {
+    return this.bins.delete(id);
+  }
+
+  async getBinByName(name: string): Promise<Bin | undefined> {
+    const allBins = Array.from(this.bins.values());
+    return allBins.find(bin => bin.name.toLowerCase() === name.toLowerCase());
+  }
+
+  async getBinStats(): Promise<Array<{ binLocation: string; itemCount: number; lastUpdated: Date }>> {
     const allItems = Array.from(this.items.values());
     const binMap = new Map<string, { count: number; lastUpdated: Date }>();
     
@@ -152,7 +220,20 @@ export class MemStorage implements IStorage {
       binLocation,
       itemCount: data.count,
       lastUpdated: data.lastUpdated
-    })).sort((a, b) => a.binLocation.localeCompare(b.binLocation));
+    })).sort((a, b) => {
+      // Custom sorting to handle numerical order (Bin-1, Bin-2, ..., Bin-10)
+      const aMatch = a.binLocation.match(/Bin-(\d+)/);
+      const bMatch = b.binLocation.match(/Bin-(\d+)/);
+      
+      if (aMatch && bMatch) {
+        const aNum = parseInt(aMatch[1]);
+        const bNum = parseInt(bMatch[1]);
+        return aNum - bNum;
+      }
+      
+      // Fallback to lexicographic for non-standard names
+      return a.binLocation.localeCompare(b.binLocation);
+    });
   }
 
   async createMultipleItems(items: InsertItem[]): Promise<Item[]> {
@@ -164,6 +245,17 @@ export class MemStorage implements IStorage {
     }
     
     return createdItems;
+  }
+
+  async createMultipleBins(bins: InsertBin[]): Promise<Bin[]> {
+    const createdBins: Bin[] = [];
+    
+    for (const bin of bins) {
+      const created = await this.createBin(bin);
+      createdBins.push(created);
+    }
+    
+    return createdBins;
   }
 }
 

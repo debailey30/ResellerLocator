@@ -46,7 +46,28 @@ export const markSoldSchema = z.object({
   soldDate: z.string().optional(),
 });
 
+// Bins table
+export const bins = pgTable("bins", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  color: text("color").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertBinSchema = createInsertSchema(bins).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateBinSchema = insertBinSchema.partial();
+
 export type InsertItem = z.infer<typeof insertItemSchema>;
 export type UpdateItem = z.infer<typeof updateItemSchema>;
 export type MarkSoldData = z.infer<typeof markSoldSchema>;
 export type Item = typeof items.$inferSelect;
+
+export type InsertBin = z.infer<typeof insertBinSchema>;
+export type UpdateBin = z.infer<typeof updateBinSchema>;
+export type Bin = typeof bins.$inferSelect;
