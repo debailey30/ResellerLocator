@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import type { Item, InsertItem, UpdateItem, MarkSoldData } from "@shared/schema";
+import type { Item, InsertItem, UpdateItem, MarkSoldData, Bin, InsertBin, UpdateBin } from "@shared/schema";
 
 export function useInventory() {
   return useQuery<Item[]>({
@@ -125,4 +125,82 @@ export function useUploadCSV() {
       queryClient.invalidateQueries({ queryKey: ["/api/bins"] });
     },
   });
+}
+
+// Bin management hooks
+export function useBinsWithColors() {
+  return useQuery<Bin[]>({
+    queryKey: ["/api/bins/list"],
+  });
+}
+
+export function useBinByName(name: string) {
+  return useQuery<Bin | undefined>({
+    queryKey: ["/api/bins/list", "by-name", name],
+    queryFn: async () => {
+      const response = await fetch("/api/bins/list");
+      if (!response.ok) throw new Error('Failed to fetch bins');
+      const bins: Bin[] = await response.json();
+      return bins.find(bin => bin.name === name);
+    },
+    enabled: !!name,
+  });
+}
+
+export function useCreateBin() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (bin: InsertBin) => {
+      const response = await apiRequest("POST", "/api/bins", bin);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bins/list"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bins"] });
+    },
+  });
+}
+
+export function useUpdateBin() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateBin }) => {
+      const response = await apiRequest("PATCH", `/api/bins/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bins/list"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bins"] });
+      // Also invalidate by-name queries since bin names might change
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0] === "/api/bins/list" && query.queryKey[1] === "by-name"
+      });
+    },
+  });
+}
+
+export function useDeleteBin() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/bins/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bins/list"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bins"] });
+      // Invalidate by-name queries since bins might be deleted
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0] === "/api/bins/list" && query.queryKey[1] === "by-name"
+      });
+    },
+  });
+}
+
+// Utility function to get bin color by name
+export function getBinColorByName(bins: Bin[], name: string): string | undefined {
+  const bin = bins.find(bin => bin.name === name);
+  return bin?.color;
 }
