@@ -6,12 +6,12 @@ export default function MobileNav({ onMenuClick }: MobileNavProps) {
   return (
     <button 
       onClick={onMenuClick}
-      className="lg:hidden text-muted-foreground hover:text-foreground p-2 rounded-md bg-accent/50"
+      className="lg:hidden text-foreground hover:text-primary p-3 rounded-lg bg-background border border-border hover:bg-accent transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
       data-testid="button-mobile-menu"
-      title="Open menu"
+      title="Open navigation menu"
     >
-      <i className="fas fa-bars text-lg"></i>
-      <span className="sr-only">Open menu</span>
+      <i className="fas fa-bars text-xl"></i>
+      <span className="sr-only">Open navigation menu</span>
     </button>
   );
 }

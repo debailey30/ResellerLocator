@@ -38,19 +38,19 @@ function AppContent() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Top Navigation */}
-        <header className="bg-card border-b border-border px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+        <header className="bg-card border-b border-border px-4 sm:px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center space-x-3 sm:space-x-4">
             <MobileNav onMenuClick={openSidebar} />
-            <h2 className="text-xl font-semibold text-foreground" data-testid="page-title">
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground truncate" data-testid="page-title">
               {pageTitle}
             </h2>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             {/* Quick Add Button - only show on home page */}
             {location === "/" && (
               <Link href="/add-item">
                 <Button 
-                  className="flex items-center space-x-2"
+                  className="flex items-center space-x-1 sm:space-x-2 min-h-[44px]"
                   data-testid="button-quick-add"
                 >
                   <i className="fas fa-plus text-sm"></i>
