@@ -393,7 +393,7 @@ export default function Dashboard() {
                                   <FormItem>
                                     <FormLabel>Brand</FormLabel>
                                     <FormControl>
-                                      <Input {...field} data-testid="input-edit-brand" />
+                                      <Input {...field} value={field.value || ""} data-testid="input-edit-brand" />
                                     </FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -407,7 +407,7 @@ export default function Dashboard() {
                                   <FormItem>
                                     <FormLabel>Size</FormLabel>
                                     <FormControl>
-                                      <Input {...field} data-testid="input-edit-size" />
+                                      <Input {...field} value={field.value || ""} data-testid="input-edit-size" />
                                     </FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -421,7 +421,7 @@ export default function Dashboard() {
                                   <FormItem>
                                     <FormLabel>Color</FormLabel>
                                     <FormControl>
-                                      <Input {...field} data-testid="input-edit-color" />
+                                      <Input {...field} value={field.value || ""} data-testid="input-edit-color" />
                                     </FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -434,7 +434,7 @@ export default function Dashboard() {
                                 render={({ field }) => (
                                   <FormItem>
                                     <FormLabel>Category</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
                                       <FormControl>
                                         <SelectTrigger data-testid="select-edit-category">
                                           <SelectValue placeholder="Select category" />
@@ -461,7 +461,7 @@ export default function Dashboard() {
                                 render={({ field }) => (
                                   <FormItem>
                                     <FormLabel>Condition</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
                                       <FormControl>
                                         <SelectTrigger data-testid="select-edit-condition">
                                           <SelectValue placeholder="Select condition" />
@@ -503,7 +503,7 @@ export default function Dashboard() {
                                 <FormItem>
                                   <FormLabel>Notes</FormLabel>
                                   <FormControl>
-                                    <Textarea {...field} data-testid="input-edit-notes" />
+                                    <Textarea {...field} value={field.value || ""} data-testid="input-edit-notes" />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
