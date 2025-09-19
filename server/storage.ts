@@ -1,4 +1,4 @@
-import { type Item, type InsertItem, type UpdateItem } from "@shared/schema";
+import { type Item, type InsertItem, type UpdateItem, type MarkSoldData } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -10,6 +10,7 @@ export interface IStorage {
   deleteItem(id: string): Promise<boolean>;
   searchItems(query: string): Promise<Item[]>;
   getItemsByBin(binLocation: string): Promise<Item[]>;
+  markAsSold(id: string, soldData: MarkSoldData): Promise<Item | undefined>;
   
   // Bin operations
   getAllBins(): Promise<Array<{ binLocation: string; itemCount: number; lastUpdated: Date }>>;
@@ -41,6 +42,9 @@ export class MemStorage implements IStorage {
     const item: Item = { 
       ...insertItem, 
       id,
+      status: "active",
+      soldDate: null,
+      soldPrice: null,
       createdAt: now,
       updatedAt: now
     };
@@ -66,6 +70,24 @@ export class MemStorage implements IStorage {
 
   async deleteItem(id: string): Promise<boolean> {
     return this.items.delete(id);
+  }
+
+  async markAsSold(id: string, soldData: MarkSoldData): Promise<Item | undefined> {
+    const existingItem = this.items.get(id);
+    if (!existingItem) {
+      return undefined;
+    }
+
+    const updatedItem: Item = {
+      ...existingItem,
+      status: "sold",
+      soldDate: soldData.soldDate ? new Date(soldData.soldDate) : new Date(),
+      soldPrice: soldData.soldPrice || null,
+      updatedAt: new Date()
+    };
+    
+    this.items.set(id, updatedItem);
+    return updatedItem;
   }
 
   async searchItems(query: string): Promise<Item[]> {

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertItemSchema, updateItemSchema } from "@shared/schema";
+import { insertItemSchema, updateItemSchema, markSoldSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
 
@@ -162,6 +162,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete item" });
+    }
+  });
+
+  // Mark item as sold
+  app.patch("/api/items/:id/sold", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const soldData = markSoldSchema.parse(req.body);
+      
+      const item = await storage.markAsSold(id, soldData);
+      
+      if (!item) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+      
+      res.json(item);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid sold data", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to mark item as sold" });
     }
   });
 
