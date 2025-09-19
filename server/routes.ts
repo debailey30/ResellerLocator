@@ -171,11 +171,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const soldData = markSoldSchema.parse(req.body);
       
-      const item = await storage.markAsSold(id, soldData);
-      
-      if (!item) {
+      // Check if item exists and is not already sold
+      const existingItem = await storage.getItemById(id);
+      if (!existingItem) {
         return res.status(404).json({ message: "Item not found" });
       }
+      
+      if (existingItem.status === "sold") {
+        return res.status(400).json({ message: "Item is already marked as sold" });
+      }
+      
+      const item = await storage.markAsSold(id, soldData);
       
       res.json(item);
     } catch (error) {

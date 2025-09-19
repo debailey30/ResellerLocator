@@ -59,6 +59,9 @@ export function useUpdateItem() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/items"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bins"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0] === "/api/items/search" || query.queryKey[0] === "/api/items/bin"
+      });
     },
   });
 }
@@ -73,6 +76,9 @@ export function useDeleteItem() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/items"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bins"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0] === "/api/items/search" || query.queryKey[0] === "/api/items/bin"
+      });
     },
   });
 }
@@ -88,6 +94,9 @@ export function useMarkAsSold() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/items"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bins"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0] === "/api/items/search" || query.queryKey[0] === "/api/items/bin"
+      });
     },
   });
 }

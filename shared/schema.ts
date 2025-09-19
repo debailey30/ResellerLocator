@@ -33,7 +33,16 @@ export const updateItemSchema = insertItemSchema.partial();
 
 // Schema for marking items as sold
 export const markSoldSchema = z.object({
-  soldPrice: z.string().optional(),
+  soldPrice: z.string().optional().refine((val) => {
+    if (!val || val.trim() === '') return true; // Allow empty/undefined
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0;
+  }, {
+    message: "Sold price must be a valid non-negative number"
+  }).transform((val) => {
+    if (!val || val.trim() === '') return undefined;
+    return parseFloat(val).toFixed(2);
+  }),
   soldDate: z.string().optional(),
 });
 
