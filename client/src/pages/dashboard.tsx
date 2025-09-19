@@ -176,14 +176,14 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Search Header */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-2">
           <h3 className="text-lg font-medium text-foreground">Find Your Items</h3>
           <Link href="/add-item">
             <Button 
-              className="bg-primary hover:bg-primary/90"
+              className="bg-primary hover:bg-primary/90 w-full sm:w-auto min-h-[44px]"
               data-testid="button-add-item-header"
             >
               <i className="fas fa-plus mr-2"></i>
@@ -191,25 +191,25 @@ export default function Dashboard() {
             </Button>
           </Link>
         </div>
-        <p className="text-muted-foreground">Search by description, brand, size, color, or any other details</p>
+        <p className="text-muted-foreground text-sm sm:text-base">Search by description, brand, size, color, or any other details</p>
       </div>
 
       {/* Search Bar */}
       <div className="mb-6">
-        <div className="flex space-x-2">
+        <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2">
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <i className="fas fa-search text-muted-foreground"></i>
             </div>
             <Input
               type="text"
-              placeholder="Search items... (e.g., 'red nike shoes size 9', 'vintage denim jacket')"
+              placeholder="Search items..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setBinSearch("");
               }}
-              className="pl-10"
+              className="pl-10 min-h-[44px]"
               data-testid="input-search"
             />
           </div>
@@ -217,10 +217,11 @@ export default function Dashboard() {
             variant="secondary"
             onClick={() => setSearchQuery("")}
             disabled={!searchQuery}
+            className="min-h-[44px] w-full sm:w-auto"
             data-testid="button-clear-search"
           >
             <i className="fas fa-times"></i>
-            <span className="hidden sm:inline ml-2">Clear</span>
+            <span className="ml-2">Clear</span>
           </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-2">
@@ -231,38 +232,41 @@ export default function Dashboard() {
       {/* Quick Bin Search */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-foreground mb-2">Or search by bin number:</label>
-        <div className="flex space-x-2">
+        <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2">
           <Input
             type="text"
-            placeholder="Enter bin number (e.g., BIN-001)"
+            placeholder="Enter bin number (e.g., Bin-1)"
             value={binSearch}
             onChange={(e) => setBinSearch(e.target.value)}
-            className="flex-1"
+            className="flex-1 min-h-[44px]"
             data-testid="input-bin-search"
           />
           <Button 
             variant="secondary" 
             onClick={handleBinSearch}
+            className="min-h-[44px] w-full sm:w-auto"
             data-testid="button-bin-search"
           >
-            <i className="fas fa-search"></i>
+            <i className="fas fa-search mr-2 sm:mr-0"></i>
+            <span className="sm:hidden">Search Bin</span>
           </Button>
         </div>
       </div>
 
       {/* Filter Toggle */}
       <div className="mb-4">
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:space-x-2">
           <Button
             variant={showSoldItems ? "default" : "outline"}
             size="sm"
             onClick={() => setShowSoldItems(!showSoldItems)}
+            className="min-h-[44px] w-full sm:w-auto"
             data-testid="button-toggle-sold-items"
           >
             <i className={`fas ${showSoldItems ? "fa-eye" : "fa-eye-slash"} mr-2`}></i>
             {showSoldItems ? "Hide Sold Items" : "Show Sold Items"}
           </Button>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-muted-foreground text-center sm:text-left">
             {displayResults.filter(item => item.status === "sold").length} sold items
           </span>
         </div>
@@ -288,30 +292,34 @@ export default function Dashboard() {
         ) : displayResults.length > 0 ? (
           displayResults.map((item) => (
             <Card key={item.id} className={`hover:shadow-md transition-shadow ${item.status === "sold" ? "opacity-60 bg-gray-50 dark:bg-gray-800" : ""}`}>
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
+              <CardContent className="pt-4 sm:pt-6">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h4 className={`font-medium ${item.status === "sold" ? "line-through text-muted-foreground" : "text-foreground"}`} data-testid={`text-item-description-${item.id}`}>
-                        {item.description}
-                      </h4>
-                      <span 
-                        className="px-2 py-1 text-xs rounded-full flex items-center"
-                        style={{
-                          backgroundColor: getBinColorByName(binsWithColors, item.binLocation) || '#6B7280',
-                          color: getContrastingColor(getBinColorByName(binsWithColors, item.binLocation) || '#6B7280')
-                        }}
-                      >
-                        <i className="fas fa-map-marker-alt mr-1"></i>
-                        <span data-testid={`text-item-bin-${item.id}`}>{item.binLocation}</span>
-                      </span>
-                      {item.status === "sold" && (
-                        <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs rounded-full font-medium">
-                          <i className="fas fa-check mr-1"></i>
-                          SOLD
-                          {item.soldPrice && ` - $${item.soldPrice}`}
+                    <div className="flex flex-col space-y-2 mb-3">
+                      <div className="flex items-start justify-between">
+                        <h4 className={`font-medium leading-tight ${item.status === "sold" ? "line-through text-muted-foreground" : "text-foreground"}`} data-testid={`text-item-description-${item.id}`}>
+                          {item.description}
+                        </h4>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span 
+                          className="px-2 py-1 text-xs rounded-full flex items-center"
+                          style={{
+                            backgroundColor: getBinColorByName(binsWithColors, item.binLocation) || '#6B7280',
+                            color: getContrastingColor(getBinColorByName(binsWithColors, item.binLocation) || '#6B7280')
+                          }}
+                        >
+                          <i className="fas fa-map-marker-alt mr-1"></i>
+                          <span data-testid={`text-item-bin-${item.id}`}>{item.binLocation}</span>
                         </span>
-                      )}
+                        {item.status === "sold" && (
+                          <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs rounded-full font-medium">
+                            <i className="fas fa-check mr-1"></i>
+                            SOLD
+                            {item.soldPrice && ` - $${item.soldPrice}`}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm text-muted-foreground">
                       {item.brand && (
@@ -339,14 +347,16 @@ export default function Dashboard() {
                       </div>
                     )}
                   </div>
-                  <div className="flex space-x-2 ml-4">
+                  <div className="flex flex-row sm:flex-col space-x-2 sm:space-x-0 sm:space-y-2 justify-end sm:ml-4">
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button 
                           variant="ghost" 
                           size="sm"
                           onClick={() => handleEdit(item)}
+                          className="min-h-[44px] min-w-[44px] flex items-center justify-center"
                           data-testid={`button-edit-${item.id}`}
+                          title="Edit item"
                         >
                           <i className="fas fa-edit"></i>
                         </Button>
@@ -529,9 +539,10 @@ export default function Dashboard() {
                         variant="ghost" 
                         size="sm"
                         onClick={() => handleMarkAsSold(item.id, item.description)}
-                        className="text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20"
+                        className="text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20 min-h-[44px] min-w-[44px] flex items-center justify-center"
                         disabled={markAsSold.isPending}
                         data-testid={`button-mark-sold-${item.id}`}
+                        title="Mark as sold"
                       >
                         <i className="fas fa-dollar-sign"></i>
                       </Button>
@@ -541,9 +552,10 @@ export default function Dashboard() {
                       variant="ghost" 
                       size="sm"
                       onClick={() => handleDelete(item.id, item.description)}
-                      className="text-destructive hover:bg-destructive/10"
+                      className="text-destructive hover:bg-destructive/10 min-h-[44px] min-w-[44px] flex items-center justify-center"
                       disabled={deleteItem.isPending}
                       data-testid={`button-delete-${item.id}`}
+                      title="Delete item"
                     >
                       <i className="fas fa-trash"></i>
                     </Button>
