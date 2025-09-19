@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { useSearchItems, useItemsByBin, useDeleteItem, useUpdateItem, useMarkAsSold } from "@/hooks/use-inventory";
+import { useSearchItems, useItemsByBin, useDeleteItem, useUpdateItem, useMarkAsSold, useBinsWithColors, getBinColorByName } from "@/hooks/use-inventory";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,21 @@ export default function Dashboard() {
   const deleteItem = useDeleteItem();
   const updateItem = useUpdateItem();
   const markAsSold = useMarkAsSold();
+  const { data: binsWithColors = [] } = useBinsWithColors();
+
+  // Helper function to get contrasting text color
+  const getContrastingColor = (hexColor: string): string => {
+    // Convert hex to RGB
+    const r = parseInt(hexColor.slice(1, 3), 16);
+    const g = parseInt(hexColor.slice(3, 5), 16);
+    const b = parseInt(hexColor.slice(5, 7), 16);
+    
+    // Calculate luminance
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    
+    // Return white for dark colors, black for light colors
+    return luminance > 0.5 ? '#000000' : '#ffffff';
+  };
 
   // Debounce search query
   useEffect(() => {
@@ -280,7 +295,13 @@ export default function Dashboard() {
                       <h4 className={`font-medium ${item.status === "sold" ? "line-through text-muted-foreground" : "text-foreground"}`} data-testid={`text-item-description-${item.id}`}>
                         {item.description}
                       </h4>
-                      <span className="px-2 py-1 bg-primary text-primary-foreground text-xs rounded-full">
+                      <span 
+                        className="px-2 py-1 text-xs rounded-full flex items-center"
+                        style={{
+                          backgroundColor: getBinColorByName(binsWithColors, item.binLocation) || '#6B7280',
+                          color: getContrastingColor(getBinColorByName(binsWithColors, item.binLocation) || '#6B7280')
+                        }}
+                      >
                         <i className="fas fa-map-marker-alt mr-1"></i>
                         <span data-testid={`text-item-bin-${item.id}`}>{item.binLocation}</span>
                       </span>

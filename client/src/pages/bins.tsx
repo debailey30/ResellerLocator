@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useBins, useBinsWithColors, useItemsByBin } from "@/hooks/use-inventory";
+import { useBins, useBinsWithColors, useItemsByBin, getBinColorByName } from "@/hooks/use-inventory";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,6 +21,20 @@ export default function Bins() {
   });
 
   const isLoading = isLoadingStats || isLoadingColors;
+
+  // Helper function to get contrasting text color
+  const getContrastingColor = (hexColor: string): string => {
+    // Convert hex to RGB
+    const r = parseInt(hexColor.slice(1, 3), 16);
+    const g = parseInt(hexColor.slice(3, 5), 16);
+    const b = parseInt(hexColor.slice(5, 7), 16);
+    
+    // Calculate luminance
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    
+    // Return white for dark colors, black for light colors
+    return luminance > 0.5 ? '#000000' : '#ffffff';
+  };
 
   const handleBinClick = (binLocation: string) => {
     setSelectedBin(binLocation);
@@ -137,9 +151,21 @@ export default function Bins() {
               binItems.map((item: Item) => (
                 <Card key={item.id}>
                   <CardContent className="pt-4">
-                    <h4 className="font-medium text-foreground mb-2" data-testid={`bin-item-description-${item.id}`}>
-                      {item.description}
-                    </h4>
+                    <div className="flex items-center space-x-3 mb-2">
+                      <h4 className="font-medium text-foreground flex-1" data-testid={`bin-item-description-${item.id}`}>
+                        {item.description}
+                      </h4>
+                      <span 
+                        className="px-2 py-1 text-xs rounded-full flex items-center"
+                        style={{
+                          backgroundColor: getBinColorByName(binsWithColors, item.binLocation) || '#6B7280',
+                          color: getContrastingColor(getBinColorByName(binsWithColors, item.binLocation) || '#6B7280')
+                        }}
+                      >
+                        <i className="fas fa-map-marker-alt mr-1"></i>
+                        <span data-testid={`bin-item-bin-${item.id}`}>{item.binLocation}</span>
+                      </span>
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm text-muted-foreground">
                       {item.brand && (
                         <div><strong>Brand:</strong> <span data-testid={`bin-item-brand-${item.id}`}>{item.brand}</span></div>
