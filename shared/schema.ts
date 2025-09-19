@@ -14,6 +14,9 @@ export const items = pgTable("items", {
   condition: text("condition"),
   price: decimal("price", { precision: 10, scale: 2 }),
   notes: text("notes"),
+  status: text("status").default("active").notNull(), // active, sold
+  soldDate: timestamp("sold_date"),
+  soldPrice: decimal("sold_price", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -22,10 +25,19 @@ export const insertItemSchema = createInsertSchema(items).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  soldDate: true,
+  soldPrice: true,
 });
 
 export const updateItemSchema = insertItemSchema.partial();
 
+// Schema for marking items as sold
+export const markSoldSchema = z.object({
+  soldPrice: z.string().optional(),
+  soldDate: z.string().optional(),
+});
+
 export type InsertItem = z.infer<typeof insertItemSchema>;
 export type UpdateItem = z.infer<typeof updateItemSchema>;
+export type MarkSoldData = z.infer<typeof markSoldSchema>;
 export type Item = typeof items.$inferSelect;
