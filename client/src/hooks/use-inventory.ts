@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import type { Item, InsertItem, UpdateItem } from "@shared/schema";
+import type { Item, InsertItem, UpdateItem, MarkSoldData } from "@shared/schema";
 
 export function useInventory() {
   return useQuery<Item[]>({
@@ -69,6 +69,21 @@ export function useDeleteItem() {
   return useMutation({
     mutationFn: async (id: string) => {
       await apiRequest("DELETE", `/api/items/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bins"] });
+    },
+  });
+}
+
+export function useMarkAsSold() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, soldData }: { id: string; soldData: MarkSoldData }) => {
+      const response = await apiRequest("PATCH", `/api/items/${id}/sold`, soldData);
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/items"] });

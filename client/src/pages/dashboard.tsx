@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { useSearchItems, useItemsByBin, useDeleteItem, useUpdateItem } from "@/hooks/use-inventory";
+import { useSearchItems, useItemsByBin, useDeleteItem, useUpdateItem, useMarkAsSold } from "@/hooks/use-inventory";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,10 +24,12 @@ export default function Dashboard() {
   const [binSearch, setBinSearch] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [showSoldItems, setShowSoldItems] = useState(true);
   
   const { toast } = useToast();
   const deleteItem = useDeleteItem();
   const updateItem = useUpdateItem();
+  const markAsSold = useMarkAsSold();
 
   // Debounce search query
   useEffect(() => {
@@ -41,7 +43,11 @@ export default function Dashboard() {
   const { data: searchResults = [], isLoading: isSearchLoading } = useSearchItems(debouncedQuery);
   const { data: binResults = [], isLoading: isBinLoading } = useItemsByBin(binSearch);
 
-  const displayResults = binSearch ? binResults : searchResults;
+  // Filter sold items based on toggle
+  const filteredSearchResults = showSoldItems ? searchResults : searchResults.filter(item => item.status !== "sold");
+  const filteredBinResults = showSoldItems ? binResults : binResults.filter(item => item.status !== "sold");
+
+  const displayResults = binSearch ? filteredBinResults : filteredSearchResults;
   const isLoading = binSearch ? isBinLoading : isSearchLoading;
 
   const form = useForm<z.infer<typeof updateFormSchema>>({
@@ -119,6 +125,32 @@ export default function Dashboard() {
         description: "Failed to update item",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleMarkAsSold = async (id: string, description: string) => {
+    const soldPrice = prompt(`Enter the sold price for "${description}" (optional):`);
+    if (soldPrice !== null) { // User clicked OK (even if empty)
+      try {
+        await markAsSold.mutateAsync({
+          id,
+          soldData: {
+            soldPrice: soldPrice || undefined,
+            soldDate: new Date().toISOString(),
+          },
+        });
+        
+        toast({
+          title: "Success",
+          description: `"${description}" marked as sold`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to mark item as sold",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -203,6 +235,24 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Filter Toggle */}
+      <div className="mb-4">
+        <div className="flex items-center space-x-2">
+          <Button
+            variant={showSoldItems ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowSoldItems(!showSoldItems)}
+            data-testid="button-toggle-sold-items"
+          >
+            <i className={`fas ${showSoldItems ? "fa-eye" : "fa-eye-slash"} mr-2`}></i>
+            {showSoldItems ? "Hide Sold Items" : "Show Sold Items"}
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            {displayResults.filter(item => item.status === "sold").length} sold items
+          </span>
+        </div>
+      </div>
+
       {/* Search Results */}
       <div className="space-y-4">
         {isLoading ? (
@@ -222,18 +272,25 @@ export default function Dashboard() {
           ))
         ) : displayResults.length > 0 ? (
           displayResults.map((item) => (
-            <Card key={item.id} className="hover:shadow-md transition-shadow">
+            <Card key={item.id} className={`hover:shadow-md transition-shadow ${item.status === "sold" ? "opacity-60 bg-gray-50 dark:bg-gray-800" : ""}`}>
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      <h4 className="font-medium text-foreground" data-testid={`text-item-description-${item.id}`}>
+                      <h4 className={`font-medium ${item.status === "sold" ? "line-through text-muted-foreground" : "text-foreground"}`} data-testid={`text-item-description-${item.id}`}>
                         {item.description}
                       </h4>
                       <span className="px-2 py-1 bg-primary text-primary-foreground text-xs rounded-full">
                         <i className="fas fa-map-marker-alt mr-1"></i>
                         <span data-testid={`text-item-bin-${item.id}`}>{item.binLocation}</span>
                       </span>
+                      {item.status === "sold" && (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs rounded-full font-medium">
+                          <i className="fas fa-check mr-1"></i>
+                          SOLD
+                          {item.soldPrice && ` - $${item.soldPrice}`}
+                        </span>
+                      )}
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm text-muted-foreground">
                       {item.brand && (
@@ -445,6 +502,19 @@ export default function Dashboard() {
                         </Form>
                       </DialogContent>
                     </Dialog>
+                    
+                    {item.status !== "sold" && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleMarkAsSold(item.id, item.description)}
+                        className="text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20"
+                        disabled={markAsSold.isPending}
+                        data-testid={`button-mark-sold-${item.id}`}
+                      >
+                        <i className="fas fa-dollar-sign"></i>
+                      </Button>
+                    )}
                     
                     <Button 
                       variant="ghost" 
