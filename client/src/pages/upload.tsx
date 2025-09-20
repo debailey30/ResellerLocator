@@ -139,8 +139,8 @@ export default function Upload() {
             <div
               className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
                 dragActive
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:bg-accent/50"
+                  ? "border-primary bg-primary/10 border-solid"
+                  : "border-primary/50 bg-primary/5 hover:bg-primary/10 hover:border-primary"
               }`}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
@@ -148,7 +148,7 @@ export default function Upload() {
               onDrop={handleDrop}
               data-testid="upload-dropzone"
             >
-              <div className="mx-auto w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+              <div className="mx-auto w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center mb-4">
                 <i className="fas fa-cloud-upload-alt text-primary text-xl"></i>
               </div>
               <h4 className="text-lg font-medium text-foreground mb-2">Drop your CSV file here</h4>
