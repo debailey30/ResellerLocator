@@ -46,10 +46,13 @@ export default function Upload() {
   };
 
   const handleFile = async (file: File) => {
-    if (!file.name.endsWith('.csv')) {
+    const allowedExtensions = ['.csv', '.xlsx', '.xls', '.odt'];
+    const isValidFile = allowedExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+    
+    if (!isValidFile) {
       toast({
         title: "Error",
-        description: "Please select a CSV file",
+        description: "Please select a CSV, Excel (.xlsx, .xls), or OpenDocument (.odt) file",
         variant: "destructive",
       });
       return;
@@ -104,17 +107,17 @@ export default function Upload() {
               </Button>
             </Link>
           </div>
-          <p className="text-muted-foreground">Import multiple items from a CSV file</p>
+          <p className="text-muted-foreground">Import multiple items from a spreadsheet file</p>
         </div>
 
         {/* Upload Instructions */}
         <Card className="mb-6">
           <CardContent className="pt-6">
-            <h4 className="font-medium text-foreground mb-2">CSV Format Requirements:</h4>
+            <h4 className="font-medium text-foreground mb-2">File Format Requirements:</h4>
             <ul className="text-sm text-muted-foreground space-y-1">
               <li>• <strong>Required columns:</strong> description, bin_location</li>
               <li>• <strong>Optional columns:</strong> brand, size, color, category, condition, price, notes</li>
-              <li>• Use comma-separated values (.csv format)</li>
+              <li>• Supports CSV (.csv), Excel (.xlsx, .xls), and OpenDocument (.odt) formats</li>
               <li>• Include headers in the first row</li>
             </ul>
           </CardContent>
@@ -151,15 +154,15 @@ export default function Upload() {
               <div className="mx-auto w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center mb-4">
                 <i className="fas fa-cloud-upload-alt text-primary text-xl"></i>
               </div>
-              <h4 className="text-lg font-medium text-foreground mb-2">Drop your CSV file here</h4>
-              <p className="text-muted-foreground mb-4">or click to browse files</p>
+              <h4 className="text-lg font-medium text-foreground mb-2">Drop your spreadsheet here</h4>
+              <p className="text-muted-foreground mb-4">Supports CSV, Excel (.xlsx), and OpenDocument (.odt) files</p>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls,.odt"
                 onChange={handleFileSelect}
                 className="hidden"
-                data-testid="input-csv-upload"
+                data-testid="input-file-upload"
               />
               <Button
                 type="button"

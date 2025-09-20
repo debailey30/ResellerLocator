@@ -4,14 +4,18 @@ import { storage } from "./storage";
 import { insertItemSchema, updateItemSchema, markSoldSchema, insertBinSchema, updateBinSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
+import * as XLSX from 'xlsx';
 
 const upload = multer({ 
   storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+    const allowedTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.oasis.opendocument.spreadsheet'];
+    const allowedExtensions = ['.csv', '.xlsx', '.xls', '.odt'];
+    
+    if (allowedTypes.includes(file.mimetype) || allowedExtensions.some(ext => file.originalname.toLowerCase().endsWith(ext))) {
       cb(null, true);
     } else {
-      cb(new Error('Only CSV files are allowed'));
+      cb(new Error('Only CSV, Excel (.xlsx, .xls), and OpenDocument (.odt) files are allowed'));
     }
   }
 });
@@ -31,6 +35,37 @@ function parseCSV(csvContent: string): Array<Record<string, string>> {
     });
     return item;
   });
+}
+
+function parseSpreadsheet(buffer: Buffer, filename: string): Array<Record<string, string>> {
+  try {
+    // Use XLSX library to parse Excel and ODF files
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    
+    // Get the first worksheet
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    
+    // Convert to JSON with header row as keys
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+    
+    if (jsonData.length === 0) return [];
+    
+    // First row contains headers
+    const headers = jsonData[0].map((h: any) => String(h || '').trim());
+    const rows = jsonData.slice(1);
+    
+    return rows.map(row => {
+      const item: Record<string, string> = {};
+      headers.forEach((header, index) => {
+        item[header] = String(row[index] || '').trim();
+      });
+      return item;
+    });
+  } catch (error) {
+    console.error('Error parsing spreadsheet:', error);
+    throw new Error('Failed to parse spreadsheet file');
+  }
 }
 
 function generateCSV(items: any[]): string {
@@ -358,18 +393,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Upload CSV
+  // Upload spreadsheet (CSV, Excel, ODF)
   app.post("/api/items/upload", upload.single('csv'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      const csvContent = req.file.buffer.toString('utf-8');
-      const parsedData = parseCSV(csvContent);
+      let parsedData: Array<Record<string, string>>;
+      
+      // Determine file type and parse accordingly
+      if (req.file.originalname.toLowerCase().endsWith('.csv')) {
+        const csvContent = req.file.buffer.toString('utf-8');
+        parsedData = parseCSV(csvContent);
+      } else {
+        // Handle Excel (.xlsx, .xls) and OpenDocument (.odt) files
+        parsedData = parseSpreadsheet(req.file.buffer, req.file.originalname);
+      }
       
       if (parsedData.length === 0) {
-        return res.status(400).json({ message: "CSV file is empty or invalid" });
+        return res.status(400).json({ message: "File is empty or invalid" });
       }
 
       const items = [];
