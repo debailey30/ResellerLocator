@@ -96,7 +96,7 @@ function generateDefaultBinsData() {
   ];
 
   // Validate uniqueness
-  const uniqueColors = [...new Set(colors)];
+  const uniqueColors = Array.from(new Set(colors));
   if (uniqueColors.length !== colors.length) {
     throw new Error('Duplicate colors found in bins data');
   }
@@ -393,6 +393,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk import items directly (JSON)
+  app.post("/api/items/bulk", async (req, res) => {
+    try {
+      const { items } = req.body;
+      
+      if (!items || !Array.isArray(items)) {
+        return res.status(400).json({ message: "Items array is required" });
+      }
+
+      const validatedItems = [];
+      const errors = [];
+
+      for (let index = 0; index < items.length; index++) {
+        const item = items[index];
+        try {
+          const validatedItem = insertItemSchema.parse(item);
+          validatedItems.push(validatedItem);
+        } catch (error) {
+          errors.push(`Item ${index + 1}: Invalid data format`);
+        }
+      }
+
+      const createdItems = await storage.createMultipleItems(validatedItems);
+
+      res.json({
+        success: true,
+        created: createdItems.length,
+        errors: errors.length,
+        errorDetails: errors
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to process bulk import" });
+    }
+  });
+
   // Upload spreadsheet (CSV, Excel, ODF)
   app.post("/api/items/upload", upload.single('csv'), async (req, res) => {
     try {
@@ -418,7 +453,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const items = [];
       const errors = [];
 
-      for (const [index, row] of parsedData.entries()) {
+      for (let index = 0; index < parsedData.length; index++) {
+        const row = parsedData[index];
         try {
           // Map CSV columns to our schema
           const itemData = {
