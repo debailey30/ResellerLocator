@@ -564,7 +564,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             color: headerMap.color ? (row[headerMap.color] || '') : '',
             category: headerMap.category ? (row[headerMap.category] || '') : '',
             condition: headerMap.condition ? (row[headerMap.condition] || '') : '',
-            price: headerMap.price ? (row[headerMap.price] || '') : '',
+            price: headerMap.price ? (row[headerMap.price] || undefined) : undefined,
             notes: headerMap.notes ? (row[headerMap.notes] || '') : ''
           };
 
@@ -589,7 +589,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         errorDetails: errors
       });
     } catch (error) {
-      res.status(500).json({ message: "Failed to process CSV upload" });
+      console.error("Upload error:", error);
+      res.status(500).json({ 
+        message: "Failed to process CSV upload",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
