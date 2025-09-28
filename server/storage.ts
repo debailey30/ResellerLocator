@@ -1,5 +1,7 @@
-import { type Item, type InsertItem, type UpdateItem, type MarkSoldData, type Bin, type InsertBin, type UpdateBin } from "@shared/schema";
+import { type Item, type InsertItem, type UpdateItem, type MarkSoldData, type Bin, type InsertBin, type UpdateBin, items, bins } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq, ilike, or, desc, asc } from "drizzle-orm";
 
 export interface IStorage {
   // Item operations
@@ -26,77 +28,48 @@ export interface IStorage {
   createMultipleBins(bins: InsertBin[]): Promise<Bin[]>;
 }
 
-export class MemStorage implements IStorage {
-  private items: Map<string, Item>;
-  private bins: Map<string, Bin>;
 
-  constructor() {
-    this.items = new Map();
-    this.bins = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
   async getAllItems(): Promise<Item[]> {
-    return Array.from(this.items.values()).sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    return await db.select().from(items).orderBy(desc(items.createdAt));
   }
 
   async getItemById(id: string): Promise<Item | undefined> {
-    return this.items.get(id);
+    const [item] = await db.select().from(items).where(eq(items.id, id));
+    return item || undefined;
   }
 
   async createItem(insertItem: InsertItem): Promise<Item> {
-    const id = randomUUID();
-    const now = new Date();
-    const item: Item = { 
-      ...insertItem, 
-      id,
-      status: "active",
-      soldDate: null,
-      soldPrice: null,
-      createdAt: now,
-      updatedAt: now
-    };
-    this.items.set(id, item);
+    const [item] = await db.insert(items).values(insertItem).returning();
     return item;
   }
 
   async updateItem(id: string, updates: UpdateItem): Promise<Item | undefined> {
-    const existingItem = this.items.get(id);
-    if (!existingItem) {
-      return undefined;
-    }
-
-    const updatedItem: Item = {
-      ...existingItem,
-      ...updates,
-      updatedAt: new Date()
-    };
-    
-    this.items.set(id, updatedItem);
-    return updatedItem;
+    const [item] = await db
+      .update(items)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(items.id, id))
+      .returning();
+    return item || undefined;
   }
 
   async deleteItem(id: string): Promise<boolean> {
-    return this.items.delete(id);
+    const result = await db.delete(items).where(eq(items.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 
   async markAsSold(id: string, soldData: MarkSoldData): Promise<Item | undefined> {
-    const existingItem = this.items.get(id);
-    if (!existingItem) {
-      return undefined;
-    }
-
-    const updatedItem: Item = {
-      ...existingItem,
-      status: "sold",
-      soldDate: soldData.soldDate ? new Date(soldData.soldDate) : new Date(),
-      soldPrice: soldData.soldPrice || null,
-      updatedAt: new Date()
-    };
-    
-    this.items.set(id, updatedItem);
-    return updatedItem;
+    const [item] = await db
+      .update(items)
+      .set({
+        status: "sold",
+        soldDate: soldData.soldDate ? new Date(soldData.soldDate) : new Date(),
+        soldPrice: soldData.soldPrice || null,
+        updatedAt: new Date()
+      })
+      .where(eq(items.id, id))
+      .returning();
+    return item || undefined;
   }
 
   async searchItems(query: string): Promise<Item[]> {
@@ -104,99 +77,69 @@ export class MemStorage implements IStorage {
       return this.getAllItems();
     }
 
-    const searchTerm = query.toLowerCase();
-    const allItems = Array.from(this.items.values());
-    
-    return allItems.filter(item => {
-      const searchableFields = [
-        item.description,
-        item.brand,
-        item.size,
-        item.color,
-        item.category,
-        item.condition,
-        item.notes,
-        item.binLocation
-      ].filter(Boolean);
-      
-      return searchableFields.some(field => 
-        field!.toLowerCase().includes(searchTerm)
-      );
-    }).sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    const searchTerm = `%${query.toLowerCase()}%`;
+    return await db
+      .select()
+      .from(items)
+      .where(
+        or(
+          ilike(items.description, searchTerm),
+          ilike(items.brand, searchTerm),
+          ilike(items.size, searchTerm),
+          ilike(items.color, searchTerm),
+          ilike(items.category, searchTerm),
+          ilike(items.condition, searchTerm),
+          ilike(items.notes, searchTerm),
+          ilike(items.binLocation, searchTerm)
+        )
+      )
+      .orderBy(desc(items.createdAt));
   }
 
   async getItemsByBin(binLocation: string): Promise<Item[]> {
-    const allItems = Array.from(this.items.values());
-    return allItems.filter(item => 
-      item.binLocation.toLowerCase() === binLocation.toLowerCase()
-    ).sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    return await db
+      .select()
+      .from(items)
+      .where(ilike(items.binLocation, binLocation))
+      .orderBy(desc(items.createdAt));
   }
 
   async getAllBins(): Promise<Bin[]> {
-    return Array.from(this.bins.values()).sort((a, b) => {
-      // Custom sorting to handle numerical order (Bin-1, Bin-2, ..., Bin-10)
-      const aMatch = a.name.match(/Bin-(\d+)/);
-      const bMatch = b.name.match(/Bin-(\d+)/);
-      
-      if (aMatch && bMatch) {
-        const aNum = parseInt(aMatch[1]);
-        const bNum = parseInt(bMatch[1]);
-        return aNum - bNum;
-      }
-      
-      // Fallback to lexicographic for non-standard names
-      return a.name.localeCompare(b.name);
-    });
+    return await db.select().from(bins).orderBy(asc(bins.name));
   }
 
   async getBinById(id: string): Promise<Bin | undefined> {
-    return this.bins.get(id);
+    const [bin] = await db.select().from(bins).where(eq(bins.id, id));
+    return bin || undefined;
   }
 
   async createBin(insertBin: InsertBin): Promise<Bin> {
-    const id = randomUUID();
-    const now = new Date();
-    const bin: Bin = { 
-      ...insertBin, 
-      id,
-      createdAt: now,
-      updatedAt: now
-    };
-    this.bins.set(id, bin);
+    const [bin] = await db.insert(bins).values(insertBin).returning();
     return bin;
   }
 
   async updateBin(id: string, updates: UpdateBin): Promise<Bin | undefined> {
-    const existingBin = this.bins.get(id);
-    if (!existingBin) {
-      return undefined;
-    }
-
-    const updatedBin: Bin = {
-      ...existingBin,
-      ...updates,
-      updatedAt: new Date()
-    };
-    
-    this.bins.set(id, updatedBin);
-    return updatedBin;
+    const [bin] = await db
+      .update(bins)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(bins.id, id))
+      .returning();
+    return bin || undefined;
   }
 
   async deleteBin(id: string): Promise<boolean> {
-    return this.bins.delete(id);
+    const result = await db.delete(bins).where(eq(bins.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 
   async getBinByName(name: string): Promise<Bin | undefined> {
-    const allBins = Array.from(this.bins.values());
-    return allBins.find(bin => bin.name.toLowerCase() === name.toLowerCase());
+    const [bin] = await db.select().from(bins).where(ilike(bins.name, name));
+    return bin || undefined;
   }
 
   async getBinStats(): Promise<Array<{ binLocation: string; itemCount: number; lastUpdated: Date }>> {
-    const allItems = Array.from(this.items.values());
+    // Note: This would be more efficient with a proper SQL query, but keeping it simple for now
+    const allItems = await this.getAllItems();
     const binMap = new Map<string, { count: number; lastUpdated: Date }>();
     
     allItems.forEach(item => {
@@ -236,27 +179,17 @@ export class MemStorage implements IStorage {
     });
   }
 
-  async createMultipleItems(items: InsertItem[]): Promise<Item[]> {
-    const createdItems: Item[] = [];
-    
-    for (const item of items) {
-      const created = await this.createItem(item);
-      createdItems.push(created);
-    }
-    
+  async createMultipleItems(itemList: InsertItem[]): Promise<Item[]> {
+    if (itemList.length === 0) return [];
+    const createdItems = await db.insert(items).values(itemList).returning();
     return createdItems;
   }
 
-  async createMultipleBins(bins: InsertBin[]): Promise<Bin[]> {
-    const createdBins: Bin[] = [];
-    
-    for (const bin of bins) {
-      const created = await this.createBin(bin);
-      createdBins.push(created);
-    }
-    
+  async createMultipleBins(binList: InsertBin[]): Promise<Bin[]> {
+    if (binList.length === 0) return [];
+    const createdBins = await db.insert(bins).values(binList).returning();
     return createdBins;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
