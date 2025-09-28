@@ -6,6 +6,90 @@ import { z } from "zod";
 import multer from "multer";
 import * as XLSX from 'xlsx';
 
+// Column mapping configuration for intelligent import
+const COLUMN_MAPPINGS = {
+  description: {
+    required: true,
+    aliases: ['description', 'item', 'product', 'name', 'item_name', 'product_name', 'title', 'item_description']
+  },
+  binLocation: {
+    required: true,
+    aliases: ['bin_location', 'binlocation', 'bin location', 'bin', 'location', 'bin_name', 'storage', 'storage_location']
+  },
+  brand: {
+    required: false,
+    aliases: ['brand', 'manufacturer', 'make', 'company']
+  },
+  size: {
+    required: false,
+    aliases: ['size', 'sizing', 'dimensions', 'measurement']
+  },
+  color: {
+    required: false,
+    aliases: ['color', 'colour', 'shade', 'hue']
+  },
+  category: {
+    required: false,
+    aliases: ['category', 'type', 'group', 'classification', 'kind']
+  },
+  condition: {
+    required: false,
+    aliases: ['condition', 'quality', 'state', 'grade', 'status']
+  },
+  price: {
+    required: false,
+    aliases: ['price', 'cost', 'value', 'amount', 'retail', 'retail_price']
+  },
+  notes: {
+    required: false,
+    aliases: ['notes', 'comments', 'remarks', 'description_notes', 'additional_info', 'extra', 'details']
+  }
+};
+
+// Function to normalize header names for comparison
+function normalizeHeader(header: string): string {
+  return header.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+}
+
+// Function to map headers from uploaded file to our schema
+function mapHeaders(fileHeaders: string[]): { headerMap: Record<string, string>, unmapped: string[], missing: string[] } {
+  const normalizedFileHeaders = fileHeaders.map(h => ({ 
+    original: h, 
+    normalized: normalizeHeader(h) 
+  }));
+  
+  const headerMap: Record<string, string> = {};
+  const unmapped: string[] = [];
+  const missing: string[] = [];
+  
+  // Try to match each of our schema fields with file headers
+  Object.entries(COLUMN_MAPPINGS).forEach(([schemaField, config]) => {
+    let matched = false;
+    
+    // Try to find a match using aliases
+    for (const alias of config.aliases) {
+      const normalizedAlias = normalizeHeader(alias);
+      const matchingHeader = normalizedFileHeaders.find(fh => fh.normalized === normalizedAlias);
+      
+      if (matchingHeader) {
+        headerMap[schemaField] = matchingHeader.original;
+        matched = true;
+        break;
+      }
+    }
+    
+    if (!matched && config.required) {
+      missing.push(schemaField);
+    }
+  });
+  
+  // Find unmapped headers (columns we'll ignore)
+  const mappedOriginalHeaders = Object.values(headerMap);
+  unmapped.push(...fileHeaders.filter(header => !mappedOriginalHeaders.includes(header)));
+  
+  return { headerMap, unmapped, missing };
+}
+
 const upload = multer({ 
   storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
@@ -453,20 +537,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const items = [];
       const errors = [];
 
+      // Get headers from the first row of data
+      const fileHeaders = parsedData.length > 0 ? Object.keys(parsedData[0]) : [];
+      const { headerMap, unmapped, missing } = mapHeaders(fileHeaders);
+      
+      // Check if we're missing required fields
+      if (missing.length > 0) {
+        return res.status(400).json({
+          message: `Missing required columns: ${missing.join(', ')}`,
+          details: {
+            missing,
+            unmapped: unmapped.length > 0 ? `Ignored columns: ${unmapped.join(', ')}` : null
+          }
+        });
+      }
+
       for (let index = 0; index < parsedData.length; index++) {
         const row = parsedData[index];
         try {
-          // Map CSV columns to our schema
+          // Map columns using intelligent mapping
           const itemData = {
-            description: row.description || row.Description || '',
-            binLocation: row.bin_location || row.binLocation || row['Bin Location'] || '',
-            brand: row.brand || row.Brand || '',
-            size: row.size || row.Size || '',
-            color: row.color || row.Color || '',
-            category: row.category || row.Category || '',
-            condition: row.condition || row.Condition || '',
-            price: row.price || row.Price || '',
-            notes: row.notes || row.Notes || ''
+            description: headerMap.description ? (row[headerMap.description] || '') : '',
+            binLocation: headerMap.binLocation ? (row[headerMap.binLocation] || '') : '',
+            brand: headerMap.brand ? (row[headerMap.brand] || '') : '',
+            size: headerMap.size ? (row[headerMap.size] || '') : '',
+            color: headerMap.color ? (row[headerMap.color] || '') : '',
+            category: headerMap.category ? (row[headerMap.category] || '') : '',
+            condition: headerMap.condition ? (row[headerMap.condition] || '') : '',
+            price: headerMap.price ? (row[headerMap.price] || '') : '',
+            notes: headerMap.notes ? (row[headerMap.notes] || '') : ''
           };
 
           if (!itemData.description || !itemData.binLocation) {
@@ -477,7 +576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const validatedItem = insertItemSchema.parse(itemData);
           items.push(validatedItem);
         } catch (error) {
-          errors.push(`Row ${index + 2}: Invalid data format`);
+          errors.push(`Row ${index + 2}: Invalid data format - ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
 
