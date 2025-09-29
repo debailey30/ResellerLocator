@@ -126,18 +126,35 @@ function parseSpreadsheet(buffer: Buffer, filename: string): Array<Record<string
     // Use XLSX library to parse Excel and ODF files
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     
-    // Get the first worksheet
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
+    // Get the first worksheet (or find "Master Inventory" sheet)
+    let worksheetName = workbook.SheetNames[0];
+    if (workbook.SheetNames.includes('Master Inventory')) {
+      worksheetName = 'Master Inventory';
+    }
+    
+    const worksheet = workbook.Sheets[worksheetName];
+    if (!worksheet) {
+      throw new Error(`Worksheet ${worksheetName} not found`);
+    }
+    
+    console.log(`Parsing worksheet: ${worksheetName}`);
     
     // Convert to JSON with header row as keys
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
     
-    if (jsonData.length === 0) return [];
+    if (jsonData.length === 0) {
+      console.log('No data found in worksheet');
+      return [];
+    }
+    
+    console.log(`Found ${jsonData.length} rows of data`);
     
     // First row contains headers
     const headers = jsonData[0].map((h: any) => String(h || '').trim());
-    const rows = jsonData.slice(1);
+    console.log('Headers found:', headers);
+    
+    const rows = jsonData.slice(1).filter(row => row && row.length > 0);
+    console.log(`Processing ${rows.length} data rows`);
     
     return rows.map(row => {
       const item: Record<string, string> = {};
@@ -148,7 +165,7 @@ function parseSpreadsheet(buffer: Buffer, filename: string): Array<Record<string
     });
   } catch (error) {
     console.error('Error parsing spreadsheet:', error);
-    throw new Error('Failed to parse spreadsheet file');
+    throw new Error(`Failed to parse spreadsheet file: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -541,13 +558,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fileHeaders = parsedData.length > 0 ? Object.keys(parsedData[0]) : [];
       const { headerMap, unmapped, missing } = mapHeaders(fileHeaders);
       
+      console.log('Header mapping result:', { headerMap, unmapped, missing });
+      
       // Check if we're missing required fields
       if (missing.length > 0) {
         return res.status(400).json({
           message: `Missing required columns: ${missing.join(', ')}`,
           details: {
             missing,
-            unmapped: unmapped.length > 0 ? `Ignored columns: ${unmapped.join(', ')}` : null
+            unmapped: unmapped.length > 0 ? `Ignored columns: ${unmapped.join(', ')}` : null,
+            availableHeaders: fileHeaders
           }
         });
       }
