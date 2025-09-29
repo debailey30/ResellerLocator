@@ -149,12 +149,41 @@ function parseSpreadsheet(buffer: Buffer, filename: string): Array<Record<string
     
     console.log(`Found ${jsonData.length} rows of data`);
     
-    // First row contains headers
-    const headers = jsonData[0].map((h: any) => String(h || '').trim());
-    console.log('Headers found:', headers);
+    // Find the actual header row (skip title rows)
+    let headerRowIndex = 0;
+    let headers: string[] = [];
     
-    const rows = jsonData.slice(1).filter(row => row && row.length > 0);
-    console.log(`Processing ${rows.length} data rows`);
+    // Look for the first row that has actual column names
+    for (let i = 0; i < Math.min(5, jsonData.length); i++) {
+      const potentialHeaders = jsonData[i].map((h: any) => String(h || '').trim());
+      console.log(`Row ${i + 1} content:`, potentialHeaders);
+      
+      // Check if this row looks like headers (has meaningful column names)
+      const hasValidHeaders = potentialHeaders.some(header => 
+        header.toLowerCase().includes('description') || 
+        header.toLowerCase().includes('item') ||
+        header.toLowerCase().includes('bin') ||
+        header.toLowerCase().includes('size') ||
+        header.toLowerCase().includes('color')
+      );
+      
+      if (hasValidHeaders) {
+        headerRowIndex = i;
+        headers = potentialHeaders;
+        console.log(`Found headers in row ${i + 1}:`, headers);
+        break;
+      }
+    }
+    
+    if (headers.length === 0) {
+      // Fallback to first non-empty row
+      headerRowIndex = 0;
+      headers = jsonData[0].map((h: any) => String(h || '').trim());
+      console.log('Using first row as headers (fallback):', headers);
+    }
+    
+    const rows = jsonData.slice(headerRowIndex + 1).filter(row => row && row.length > 0);
+    console.log(`Processing ${rows.length} data rows starting from row ${headerRowIndex + 2}`);
     
     return rows.map(row => {
       const item: Record<string, string> = {};
