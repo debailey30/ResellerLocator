@@ -137,58 +137,42 @@ function parseSpreadsheet(buffer: Buffer, filename: string): Array<Record<string
       throw new Error(`Worksheet ${worksheetName} not found`);
     }
     
-    console.log(`Parsing worksheet: ${worksheetName}`);
-    
     // Convert to JSON with header row as keys
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
     
-    if (jsonData.length === 0) {
-      console.log('No data found in worksheet');
-      return [];
-    }
+    if (jsonData.length === 0) return [];
     
-    console.log(`Found ${jsonData.length} rows of data`);
-    
-    // Find the actual header row (skip title rows)
+    // Find the header row (skip title rows)
     let headerRowIndex = 0;
     let headers: string[] = [];
     
-    // Look for the first row that has actual column names
+    // Look through first few rows to find the actual header row
     for (let i = 0; i < Math.min(5, jsonData.length); i++) {
       const potentialHeaders = jsonData[i].map((h: any) => String(h || '').trim());
-      console.log(`Row ${i + 1} content:`, potentialHeaders);
       
-      // Check if this row looks like headers (has meaningful column names)
-      const hasValidHeaders = potentialHeaders.some(header => 
-        header.toLowerCase().includes('description') || 
-        header.toLowerCase().includes('item') ||
-        header.toLowerCase().includes('bin') ||
-        header.toLowerCase().includes('size') ||
-        header.toLowerCase().includes('color')
-      );
-      
-      if (hasValidHeaders) {
+      // Check if this looks like a header row (multiple non-empty values)
+      const nonEmptyHeaders = potentialHeaders.filter(h => h && h !== 'Master Inventory');
+      if (nonEmptyHeaders.length >= 2) {
         headerRowIndex = i;
         headers = potentialHeaders;
-        console.log(`Found headers in row ${i + 1}:`, headers);
         break;
       }
     }
     
     if (headers.length === 0) {
-      // Fallback to first non-empty row
-      headerRowIndex = 0;
       headers = jsonData[0].map((h: any) => String(h || '').trim());
-      console.log('Using first row as headers (fallback):', headers);
     }
     
-    const rows = jsonData.slice(headerRowIndex + 1).filter(row => row && row.length > 0);
-    console.log(`Processing ${rows.length} data rows starting from row ${headerRowIndex + 2}`);
+    const dataRows = jsonData.slice(headerRowIndex + 1).filter(row => 
+      row && row.length > 0 && row.some(cell => String(cell || '').trim())
+    );
     
-    return rows.map(row => {
+    return dataRows.map(row => {
       const item: Record<string, string> = {};
-      headers.forEach((header, index) => {
-        item[header] = String(row[index] || '').trim();
+      headers.forEach((header, colIndex) => {
+        if (header) {
+          item[header] = String(row[colIndex] || '').trim();
+        }
       });
       return item;
     });
@@ -587,7 +571,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fileHeaders = parsedData.length > 0 ? Object.keys(parsedData[0]) : [];
       const { headerMap, unmapped, missing } = mapHeaders(fileHeaders);
       
-      console.log('Header mapping result:', { headerMap, unmapped, missing });
       
       // Check if we're missing required fields
       if (missing.length > 0) {
