@@ -296,6 +296,12 @@ export default function Dashboard() {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex flex-col space-y-2 mb-3">
+                      {/* Brand shown first at the top */}
+                      {item.brand && (
+                        <div className="text-lg font-semibold text-primary" data-testid={`text-item-brand-top-${item.id}`}>
+                          {item.brand}
+                        </div>
+                      )}
                       <div className="flex items-start justify-between">
                         <h4 className={`font-medium leading-tight ${item.status === "sold" ? "line-through text-muted-foreground" : "text-foreground"}`} data-testid={`text-item-description-${item.id}`}>
                           {item.description}
@@ -322,9 +328,6 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm text-muted-foreground">
-                      {item.brand && (
-                        <div><strong>Brand:</strong> <span data-testid={`text-item-brand-${item.id}`}>{item.brand}</span></div>
-                      )}
                       {item.size && (
                         <div><strong>Size:</strong> <span data-testid={`text-item-size-${item.id}`}>{item.size}</span></div>
                       )}
