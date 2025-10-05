@@ -539,16 +539,17 @@ export default function Dashboard() {
                     
                     {item.status !== "sold" && (
                       <Button 
-                        variant="ghost" 
+                        variant="outline" 
                         size="sm"
                         onClick={() => handleMarkAsSold(item.id, item.description)}
-                        className="text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                        className="text-green-600 border-green-600 hover:bg-green-50 dark:text-green-400 dark:border-green-400 dark:hover:bg-green-900/20 min-h-[44px] gap-2"
                         disabled={markAsSold.isPending}
                         data-testid={`button-mark-sold-${item.id}`}
                         title="Mark as sold"
                         aria-label={`Mark ${item.description} as sold`}
                       >
-                        <DollarSign className="w-5 h-5" />
+                        <DollarSign className="w-4 h-4" />
+                        <span className="hidden sm:inline">Sold</span>
                       </Button>
                     )}
                     
