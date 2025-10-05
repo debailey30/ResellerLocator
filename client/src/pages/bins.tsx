@@ -1,24 +1,54 @@
 import { useState } from "react";
-import { useBins, useBinsWithColors, useItemsByBin, useDeleteBin, useUpdateBin, getBinColorByName } from "@/hooks/use-inventory";
+import { useBins, useBinsWithColors, useItemsByBin, useDeleteBin, useUpdateBin, useDeleteItem, useUpdateItem, useMarkAsSold, getBinColorByName } from "@/hooks/use-inventory";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { updateItemSchema, type UpdateItem } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Pencil, Palette } from "lucide-react";
+import { Trash2, Pencil, DollarSign, MapPin } from "lucide-react";
+import { z } from "zod";
 import type { Item, Bin } from "@shared/schema";
+
+const updateFormSchema = updateItemSchema.extend({
+  price: z.string().optional(),
+});
 
 export default function Bins() {
   const [selectedBin, setSelectedBin] = useState<string | null>(null);
   const [editingBin, setEditingBin] = useState<{ id: string; name: string; color: string } | null>(null);
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
   const { data: binStats = [], isLoading: isLoadingStats } = useBins();
   const { data: binsWithColors = [], isLoading: isLoadingColors } = useBinsWithColors();
   const { data: binItems = [], isLoading: isLoadingItems } = useItemsByBin(selectedBin || "");
   const deleteBin = useDeleteBin();
   const updateBin = useUpdateBin();
+  const deleteItem = useDeleteItem();
+  const updateItem = useUpdateItem();
+  const markAsSold = useMarkAsSold();
   const { toast } = useToast();
+
+  const form = useForm<z.infer<typeof updateFormSchema>>({
+    resolver: zodResolver(updateFormSchema),
+    defaultValues: {
+      description: "",
+      binLocation: "",
+      brand: "",
+      size: "",
+      color: "",
+      category: "",
+      condition: "",
+      price: "",
+      notes: "",
+    },
+  });
 
   // Combine bin stats with color data and sort numerically
   const combinedBins = binStats.map(stat => {
@@ -111,6 +141,90 @@ export default function Bins() {
           variant: "destructive",
         });
       }
+    }
+  };
+
+  const handleEditItem = (item: Item) => {
+    setEditingItem(item);
+    form.reset({
+      description: item.description,
+      binLocation: item.binLocation,
+      brand: item.brand || "",
+      size: item.size || "",
+      color: item.color || "",
+      category: item.category || "",
+      condition: item.condition || "",
+      price: item.price || "",
+      notes: item.notes || "",
+    });
+  };
+
+  const handleDeleteItem = async (id: string, description: string) => {
+    if (window.confirm(`Are you sure you want to delete "${description}"?`)) {
+      try {
+        await deleteItem.mutateAsync(id);
+        toast({
+          title: "Success",
+          description: "Item deleted successfully",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete item",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleMarkAsSold = async (id: string, description: string) => {
+    const soldPrice = prompt(`Enter the sold price for "${description}":`);
+    if (soldPrice !== null) {
+      try {
+        await markAsSold.mutateAsync({
+          id,
+          soldData: { soldPrice },
+        });
+        toast({
+          title: "Success",
+          description: "Item marked as sold",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to mark item as sold",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const onSubmit = async (data: z.infer<typeof updateFormSchema>) => {
+    if (!editingItem) return;
+
+    try {
+      const updateData: UpdateItem = {
+        ...data,
+        price: data.price ? data.price : undefined,
+      };
+      
+      await updateItem.mutateAsync({
+        id: editingItem.id,
+        data: updateData,
+      });
+
+      toast({
+        title: "Success",
+        description: "Item updated successfully",
+      });
+      
+      setEditingItem(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update item",
+        variant: "destructive",
+      });
     }
   };
 
@@ -251,46 +365,269 @@ export default function Bins() {
               binItems.map((item: Item) => (
                 <Card key={item.id}>
                   <CardContent className="pt-4">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h4 className="font-medium text-foreground flex-1" data-testid={`bin-item-description-${item.id}`}>
-                        {item.description}
-                      </h4>
-                      <span 
-                        className="px-2 py-1 text-xs rounded-full flex items-center"
-                        style={{
-                          backgroundColor: getBinColorByName(binsWithColors, item.binLocation) || '#6B7280',
-                          color: getContrastingColor(getBinColorByName(binsWithColors, item.binLocation) || '#6B7280')
-                        }}
-                      >
-                        <i className="fas fa-map-marker-alt mr-1"></i>
-                        <span data-testid={`bin-item-bin-${item.id}`}>{item.binLocation}</span>
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm text-muted-foreground">
-                      {item.brand && (
-                        <div><strong>Brand:</strong> <span data-testid={`bin-item-brand-${item.id}`}>{item.brand}</span></div>
-                      )}
-                      {item.size && (
-                        <div><strong>Size:</strong> <span data-testid={`bin-item-size-${item.id}`}>{item.size}</span></div>
-                      )}
-                      {item.condition && (
-                        <div><strong>Condition:</strong> <span data-testid={`bin-item-condition-${item.id}`}>{item.condition}</span></div>
-                      )}
-                      {item.color && (
-                        <div><strong>Color:</strong> <span data-testid={`bin-item-color-${item.id}`}>{item.color}</span></div>
-                      )}
-                      {item.category && (
-                        <div><strong>Category:</strong> <span data-testid={`bin-item-category-${item.id}`}>{item.category}</span></div>
-                      )}
-                      <div><strong>Added:</strong> <span data-testid={`bin-item-date-${item.id}`}>
-                        {new Date(item.createdAt).toLocaleDateString()}
-                      </span></div>
-                    </div>
-                    {item.notes && (
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        <strong>Notes:</strong> <span data-testid={`bin-item-notes-${item.id}`}>{item.notes}</span>
+                    <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                      <div className="flex-1">
+                        {item.brand && (
+                          <div className="text-lg font-semibold text-foreground mb-1" data-testid={`bin-item-brand-${item.id}`}>
+                            {item.brand}
+                          </div>
+                        )}
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h4 className="font-medium text-foreground" data-testid={`bin-item-description-${item.id}`}>
+                            {item.description}
+                          </h4>
+                          <span 
+                            className="px-2 py-1 text-xs rounded-full flex items-center"
+                            style={{
+                              backgroundColor: getBinColorByName(binsWithColors, item.binLocation) || '#6B7280',
+                              color: getContrastingColor(getBinColorByName(binsWithColors, item.binLocation) || '#6B7280')
+                            }}
+                          >
+                            <MapPin className="w-3 h-3 mr-1" />
+                            <span data-testid={`bin-item-bin-${item.id}`}>{item.binLocation}</span>
+                          </span>
+                          {item.status === "sold" && (
+                            <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs rounded-full font-medium">
+                              SOLD
+                              {item.soldPrice && ` - $${item.soldPrice}`}
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                          {item.size && (
+                            <div><strong>Size:</strong> <span data-testid={`bin-item-size-${item.id}`}>{item.size}</span></div>
+                          )}
+                          {item.condition && (
+                            <div><strong>Condition:</strong> <span data-testid={`bin-item-condition-${item.id}`}>{item.condition}</span></div>
+                          )}
+                          {item.color && (
+                            <div><strong>Color:</strong> <span data-testid={`bin-item-color-${item.id}`}>{item.color}</span></div>
+                          )}
+                          {item.category && (
+                            <div><strong>Category:</strong> <span data-testid={`bin-item-category-${item.id}`}>{item.category}</span></div>
+                          )}
+                          <div><strong>Added:</strong> <span data-testid={`bin-item-date-${item.id}`}>
+                            {new Date(item.createdAt).toLocaleDateString()}
+                          </span></div>
+                        </div>
+                        {item.notes && (
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            <strong>Notes:</strong> <span data-testid={`bin-item-notes-${item.id}`}>{item.notes}</span>
+                          </div>
+                        )}
                       </div>
-                    )}
+                      <div className="flex flex-row sm:flex-col space-x-2 sm:space-x-0 sm:space-y-2 justify-end">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleEditItem(item)}
+                              className="min-h-[44px] min-w-[44px] flex items-center justify-center"
+                              data-testid={`button-edit-item-${item.id}`}
+                              title="Edit item"
+                            >
+                              <Pencil className="w-5 h-5" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle>Edit Item</DialogTitle>
+                            </DialogHeader>
+                            <Form {...form}>
+                              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                                <FormField
+                                  control={form.control}
+                                  name="description"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Description *</FormLabel>
+                                      <FormControl>
+                                        <Textarea {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                
+                                <FormField
+                                  control={form.control}
+                                  name="binLocation"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Bin Location *</FormLabel>
+                                      <FormControl>
+                                        <Input {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+
+                                <div className="grid grid-cols-2 gap-4">
+                                  <FormField
+                                    control={form.control}
+                                    name="brand"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel>Brand</FormLabel>
+                                        <FormControl>
+                                          <Input {...field} value={field.value || ""} />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+
+                                  <FormField
+                                    control={form.control}
+                                    name="size"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel>Size</FormLabel>
+                                        <FormControl>
+                                          <Input {...field} value={field.value || ""} />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+
+                                  <FormField
+                                    control={form.control}
+                                    name="color"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel>Color</FormLabel>
+                                        <FormControl>
+                                          <Input {...field} value={field.value || ""} />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+
+                                  <FormField
+                                    control={form.control}
+                                    name="category"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel>Category</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                                          <FormControl>
+                                            <SelectTrigger>
+                                              <SelectValue placeholder="Select category" />
+                                            </SelectTrigger>
+                                          </FormControl>
+                                          <SelectContent>
+                                            <SelectItem value="clothing">Clothing</SelectItem>
+                                            <SelectItem value="shoes">Shoes</SelectItem>
+                                            <SelectItem value="accessories">Accessories</SelectItem>
+                                            <SelectItem value="bags">Bags</SelectItem>
+                                            <SelectItem value="jewelry">Jewelry</SelectItem>
+                                            <SelectItem value="other">Other</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+
+                                  <FormField
+                                    control={form.control}
+                                    name="condition"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel>Condition</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                                          <FormControl>
+                                            <SelectTrigger>
+                                              <SelectValue placeholder="Select condition" />
+                                            </SelectTrigger>
+                                          </FormControl>
+                                          <SelectContent>
+                                            <SelectItem value="new">New with Tags</SelectItem>
+                                            <SelectItem value="like-new">Like New</SelectItem>
+                                            <SelectItem value="good">Good</SelectItem>
+                                            <SelectItem value="fair">Fair</SelectItem>
+                                            <SelectItem value="poor">Poor</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+
+                                  <FormField
+                                    control={form.control}
+                                    name="price"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel>Price</FormLabel>
+                                        <FormControl>
+                                          <Input {...field} type="number" step="0.01" />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                </div>
+
+                                <FormField
+                                  control={form.control}
+                                  name="notes"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Notes</FormLabel>
+                                      <FormControl>
+                                        <Textarea {...field} value={field.value || ""} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+
+                                <div className="flex justify-end space-x-2">
+                                  <Button 
+                                    type="submit" 
+                                    disabled={updateItem.isPending}
+                                  >
+                                    {updateItem.isPending ? "Saving..." : "Save Changes"}
+                                  </Button>
+                                </div>
+                              </form>
+                            </Form>
+                          </DialogContent>
+                        </Dialog>
+                        
+                        {item.status !== "sold" && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleMarkAsSold(item.id, item.description)}
+                            className="text-green-600 border-green-600 hover:bg-green-50 dark:text-green-400 dark:border-green-400 dark:hover:bg-green-900/20 min-h-[44px] gap-2"
+                            disabled={markAsSold.isPending}
+                            data-testid={`button-mark-sold-item-${item.id}`}
+                            title="Mark as sold"
+                          >
+                            <DollarSign className="w-4 h-4" />
+                            <span className="hidden sm:inline">Sold</span>
+                          </Button>
+                        )}
+                        
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDeleteItem(item.id, item.description)}
+                          className="text-destructive hover:bg-destructive/10 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                          disabled={deleteItem.isPending}
+                          data-testid={`button-delete-item-${item.id}`}
+                          title="Delete item"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </Button>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               ))
