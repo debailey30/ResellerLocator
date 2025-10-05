@@ -14,6 +14,7 @@ import { updateItemSchema, type UpdateItem, type Item } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { z } from "zod";
+import { Pencil, Trash2, Plus, Search, X, MapPin, Eye, EyeOff, Check, DollarSign } from "lucide-react";
 
 const updateFormSchema = updateItemSchema.extend({
   price: z.string().optional(),
@@ -186,7 +187,7 @@ export default function Dashboard() {
               className="bg-primary hover:bg-primary/90 w-full sm:w-auto min-h-[44px]"
               data-testid="button-add-item-header"
             >
-              <i className="fas fa-plus mr-2"></i>
+              <Plus className="w-4 h-4 mr-2" />
               Add Item
             </Button>
           </Link>
@@ -199,7 +200,7 @@ export default function Dashboard() {
         <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2">
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <i className="fas fa-search text-muted-foreground"></i>
+              <Search className="w-4 h-4 text-muted-foreground" />
             </div>
             <Input
               type="text"
@@ -220,7 +221,7 @@ export default function Dashboard() {
             className="min-h-[44px] w-full sm:w-auto"
             data-testid="button-clear-search"
           >
-            <i className="fas fa-times"></i>
+            <X className="w-4 h-4" />
             <span className="ml-2">Clear</span>
           </Button>
         </div>
@@ -247,7 +248,7 @@ export default function Dashboard() {
             className="min-h-[44px] w-full sm:w-auto"
             data-testid="button-bin-search"
           >
-            <i className="fas fa-search mr-2 sm:mr-0"></i>
+            <Search className="w-4 h-4 mr-2 sm:mr-0" />
             <span className="sm:hidden">Search Bin</span>
           </Button>
         </div>
@@ -263,7 +264,7 @@ export default function Dashboard() {
             className="min-h-[44px] w-full sm:w-auto"
             data-testid="button-toggle-sold-items"
           >
-            <i className={`fas ${showSoldItems ? "fa-eye" : "fa-eye-slash"} mr-2`}></i>
+            {showSoldItems ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
             {showSoldItems ? "Hide Sold Items" : "Show Sold Items"}
           </Button>
           <span className="text-sm text-muted-foreground text-center sm:text-left">
@@ -315,12 +316,12 @@ export default function Dashboard() {
                             color: getContrastingColor(getBinColorByName(binsWithColors, item.binLocation) || '#6B7280')
                           }}
                         >
-                          <i className="fas fa-map-marker-alt mr-1"></i>
+                          <MapPin className="w-3 h-3 mr-1" />
                           <span data-testid={`text-item-bin-${item.id}`}>{item.binLocation}</span>
                         </span>
                         {item.status === "sold" && (
                           <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs rounded-full font-medium">
-                            <i className="fas fa-check mr-1"></i>
+                            <Check className="w-3 h-3 mr-1 inline" />
                             SOLD
                             {item.soldPrice && ` - $${item.soldPrice}`}
                           </span>
@@ -362,7 +363,7 @@ export default function Dashboard() {
                           title="Edit item"
                           aria-label={`Edit ${item.description}`}
                         >
-                          <i className="fas fa-edit"></i>
+                          <Pencil className="w-5 h-5" />
                         </Button>
                       </DialogTrigger>
                       <DialogContent className="max-w-2xl">
@@ -549,7 +550,7 @@ export default function Dashboard() {
                         title="Mark as sold"
                         aria-label={`Mark ${item.description} as sold`}
                       >
-                        <i className="fas fa-dollar-sign"></i>
+                        <DollarSign className="w-5 h-5" />
                       </Button>
                     )}
                     
@@ -563,7 +564,7 @@ export default function Dashboard() {
                       title="Delete item"
                       aria-label={`Delete ${item.description}`}
                     >
-                      <i className="fas fa-trash"></i>
+                      <Trash2 className="w-5 h-5" />
                     </Button>
                   </div>
                 </div>
@@ -573,7 +574,7 @@ export default function Dashboard() {
         ) : (
           // No results state
           <div className="text-center py-12" data-testid="no-results">
-            <i className="fas fa-search text-4xl text-muted-foreground mb-4"></i>
+            <Search className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">No items found</h3>
             <p className="text-muted-foreground">
               {searchQuery || binSearch 
