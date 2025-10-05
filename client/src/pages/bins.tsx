@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { useBins, useBinsWithColors, useItemsByBin, getBinColorByName } from "@/hooks/use-inventory";
+import { useBins, useBinsWithColors, useItemsByBin, useDeleteBin, getBinColorByName } from "@/hooks/use-inventory";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { Trash2 } from "lucide-react";
 import type { Item, Bin } from "@shared/schema";
 
 export default function Bins() {
@@ -10,13 +13,16 @@ export default function Bins() {
   const { data: binStats = [], isLoading: isLoadingStats } = useBins();
   const { data: binsWithColors = [], isLoading: isLoadingColors } = useBinsWithColors();
   const { data: binItems = [], isLoading: isLoadingItems } = useItemsByBin(selectedBin || "");
+  const deleteBin = useDeleteBin();
+  const { toast } = useToast();
 
   // Combine bin stats with color data and sort numerically
   const combinedBins = binStats.map(stat => {
     const binWithColor = binsWithColors.find(bin => bin.name === stat.binLocation);
     return {
       ...stat,
-      color: binWithColor?.color || '#6B7280' // Default gray color if no color found
+      color: binWithColor?.color || '#6B7280', // Default gray color if no color found
+      binId: binWithColor?.id || '' // Store bin ID for deletion
     };
   }).sort((a, b) => {
     // Sort bins numerically (Bin-0, Bin-1, Bin-2, ..., Bin-30)
@@ -43,6 +49,35 @@ export default function Bins() {
 
   const handleBinClick = (binLocation: string) => {
     setSelectedBin(binLocation);
+  };
+
+  const handleDeleteBin = async (e: React.MouseEvent, binId: string, binName: string, itemCount: number) => {
+    e.stopPropagation(); // Prevent opening the bin dialog
+    
+    if (itemCount > 0) {
+      toast({
+        title: "Cannot delete bin",
+        description: `${binName} contains ${itemCount} item(s). Please move or delete all items first.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (window.confirm(`Are you sure you want to delete ${binName}? This action cannot be undone.`)) {
+      try {
+        await deleteBin.mutateAsync(binId);
+        toast({
+          title: "Success",
+          description: `${binName} has been deleted`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete bin",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
   const formatLastUpdated = (dateString: string) => {
@@ -102,12 +137,26 @@ export default function Bins() {
                         {bin.binLocation}
                       </h4>
                     </div>
-                    <span 
-                      className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full"
-                      data-testid={`text-bin-count-${bin.binLocation}`}
-                    >
-                      {bin.itemCount} items
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span 
+                        className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full"
+                        data-testid={`text-bin-count-${bin.binLocation}`}
+                      >
+                        {bin.itemCount} items
+                      </span>
+                      {bin.binId && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => handleDeleteBin(e, bin.binId, bin.binLocation, bin.itemCount)}
+                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                          data-testid={`button-delete-bin-${bin.binLocation}`}
+                          title={bin.itemCount > 0 ? `Cannot delete - contains ${bin.itemCount} items` : `Delete ${bin.binLocation}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <div className="text-xs text-muted-foreground" data-testid={`text-bin-updated-${bin.binLocation}`}>
                     Last updated: {formatLastUpdated(bin.lastUpdated.toString())}
