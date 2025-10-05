@@ -105,7 +105,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllBins(): Promise<Bin[]> {
-    return await db.select().from(bins).orderBy(asc(bins.name));
+    const allBins = await db.select().from(bins);
+    // Sort bins numerically (Bin-0, Bin-1, Bin-2, ..., Bin-30)
+    return allBins.sort((a, b) => {
+      const numA = parseInt(a.name.replace('Bin-', '')) || 0;
+      const numB = parseInt(b.name.replace('Bin-', '')) || 0;
+      return numA - numB;
+    });
   }
 
   async getBinById(id: string): Promise<Bin | undefined> {

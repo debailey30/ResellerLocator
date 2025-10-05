@@ -199,8 +199,9 @@ function generateCSV(items: any[]): string {
 }
 
 function generateDefaultBinsData() {
-  // 30 distinct, visually appealing colors for bins (duplicates removed)
+  // 31 distinct, visually appealing colors for bins (including Bin-0)
   const colors = [
+    '#808080', // Gray for Bin-0 (uncategorized items)
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
     '#DDA0DD', '#FF9FF3', '#54A0FF', '#5F27CD', '#00D2D3',
     '#FF9F43', '#EE5A24', '#0ABDE3', '#00CEC9', '#6C5CE7',
@@ -215,8 +216,9 @@ function generateDefaultBinsData() {
     throw new Error('Duplicate colors found in bins data');
   }
 
-  return Array.from({ length: 30 }, (_, index) => ({
-    name: `Bin-${index + 1}`,
+  // Generate Bin-0 through Bin-30 (31 bins total)
+  return Array.from({ length: 31 }, (_, index) => ({
+    name: `Bin-${index}`,
     color: colors[index]
   }));
 }
