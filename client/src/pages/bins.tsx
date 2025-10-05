@@ -1,19 +1,23 @@
 import { useState } from "react";
-import { useBins, useBinsWithColors, useItemsByBin, useDeleteBin, getBinColorByName } from "@/hooks/use-inventory";
+import { useBins, useBinsWithColors, useItemsByBin, useDeleteBin, useUpdateBin, getBinColorByName } from "@/hooks/use-inventory";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2 } from "lucide-react";
+import { Trash2, Pencil, Palette } from "lucide-react";
 import type { Item, Bin } from "@shared/schema";
 
 export default function Bins() {
   const [selectedBin, setSelectedBin] = useState<string | null>(null);
+  const [editingBin, setEditingBin] = useState<{ id: string; name: string; color: string } | null>(null);
   const { data: binStats = [], isLoading: isLoadingStats } = useBins();
   const { data: binsWithColors = [], isLoading: isLoadingColors } = useBinsWithColors();
   const { data: binItems = [], isLoading: isLoadingItems } = useItemsByBin(selectedBin || "");
   const deleteBin = useDeleteBin();
+  const updateBin = useUpdateBin();
   const { toast } = useToast();
 
   // Combine bin stats with color data and sort numerically
@@ -49,6 +53,36 @@ export default function Bins() {
 
   const handleBinClick = (binLocation: string) => {
     setSelectedBin(binLocation);
+  };
+
+  const handleEditBin = (e: React.MouseEvent, binId: string, binName: string, binColor: string) => {
+    e.stopPropagation(); // Prevent opening the bin dialog
+    setEditingBin({ id: binId, name: binName, color: binColor });
+  };
+
+  const handleSaveBinEdit = async () => {
+    if (!editingBin) return;
+    
+    try {
+      await updateBin.mutateAsync({
+        id: editingBin.id,
+        data: {
+          name: editingBin.name,
+          color: editingBin.color,
+        },
+      });
+      toast({
+        title: "Success",
+        description: `Bin updated successfully`,
+      });
+      setEditingBin(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update bin",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDeleteBin = async (e: React.MouseEvent, binId: string, binName: string, itemCount: number) => {
@@ -145,16 +179,28 @@ export default function Bins() {
                         {bin.itemCount} items
                       </span>
                       {bin.binId && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => handleDeleteBin(e, bin.binId, bin.binLocation, bin.itemCount)}
-                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                          data-testid={`button-delete-bin-${bin.binLocation}`}
-                          title={bin.itemCount > 0 ? `Cannot delete - contains ${bin.itemCount} items` : `Delete ${bin.binLocation}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => handleEditBin(e, bin.binId, bin.binLocation, bin.color)}
+                            className="h-8 w-8 p-0 hover:bg-accent"
+                            data-testid={`button-edit-bin-${bin.binLocation}`}
+                            title={`Edit ${bin.binLocation}`}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => handleDeleteBin(e, bin.binId, bin.binLocation, bin.itemCount)}
+                            className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                            data-testid={`button-delete-bin-${bin.binLocation}`}
+                            title={bin.itemCount > 0 ? `Cannot delete - contains ${bin.itemCount} items` : `Delete ${bin.binLocation}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -254,6 +300,75 @@ export default function Bins() {
                 <p className="text-muted-foreground">No items found in this bin</p>
               </div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Bin Dialog */}
+      <Dialog open={!!editingBin} onOpenChange={() => setEditingBin(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Bin</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="bin-name">Bin Name</Label>
+              <Input
+                id="bin-name"
+                value={editingBin?.name || ''}
+                onChange={(e) => setEditingBin(prev => prev ? { ...prev, name: e.target.value } : null)}
+                placeholder="e.g., Bin-1"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="bin-color">Color</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="bin-color"
+                  type="color"
+                  value={editingBin?.color || '#808080'}
+                  onChange={(e) => setEditingBin(prev => prev ? { ...prev, color: e.target.value } : null)}
+                  className="h-12 w-20 cursor-pointer"
+                />
+                <Input
+                  value={editingBin?.color || '#808080'}
+                  onChange={(e) => setEditingBin(prev => prev ? { ...prev, color: e.target.value } : null)}
+                  placeholder="#808080"
+                  className="flex-1"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Choose a color that helps you identify this bin
+              </p>
+            </div>
+
+            <div 
+              className="h-20 rounded-md border-2"
+              style={{ backgroundColor: editingBin?.color || '#808080' }}
+            >
+              <div className="h-full flex items-center justify-center">
+                <span 
+                  className="text-lg font-semibold px-4 py-2 rounded"
+                  style={{ 
+                    color: getContrastingColor(editingBin?.color || '#808080'),
+                    backgroundColor: 'rgba(0,0,0,0.1)'
+                  }}
+                >
+                  {editingBin?.name}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setEditingBin(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveBinEdit} disabled={updateBin.isPending}>
+              {updateBin.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
