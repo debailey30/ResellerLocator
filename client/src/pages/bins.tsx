@@ -11,13 +11,18 @@ export default function Bins() {
   const { data: binsWithColors = [], isLoading: isLoadingColors } = useBinsWithColors();
   const { data: binItems = [], isLoading: isLoadingItems } = useItemsByBin(selectedBin || "");
 
-  // Combine bin stats with color data
+  // Combine bin stats with color data and sort numerically
   const combinedBins = binStats.map(stat => {
     const binWithColor = binsWithColors.find(bin => bin.name === stat.binLocation);
     return {
       ...stat,
       color: binWithColor?.color || '#6B7280' // Default gray color if no color found
     };
+  }).sort((a, b) => {
+    // Sort bins numerically (Bin-0, Bin-1, Bin-2, ..., Bin-30)
+    const numA = parseInt(a.binLocation.replace(/\D/g, '')) || 0;
+    const numB = parseInt(b.binLocation.replace(/\D/g, '')) || 0;
+    return numA - numB;
   });
 
   const isLoading = isLoadingStats || isLoadingColors;
