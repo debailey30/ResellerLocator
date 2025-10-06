@@ -53,49 +53,49 @@ function normalizeHeader(header: string): string {
 
 // Function to map headers from uploaded file to our schema
 function mapHeaders(fileHeaders: string[]): { headerMap: Record<string, string>, unmapped: string[], missing: string[] } {
-  const normalizedFileHeaders = fileHeaders.map(h => ({ 
-    original: h, 
-    normalized: normalizeHeader(h) 
+  const normalizedFileHeaders = fileHeaders.map(h => ({
+    original: h,
+    normalized: normalizeHeader(h)
   }));
-  
+
   const headerMap: Record<string, string> = {};
   const unmapped: string[] = [];
   const missing: string[] = [];
-  
+
   // Try to match each of our schema fields with file headers
   Object.entries(COLUMN_MAPPINGS).forEach(([schemaField, config]) => {
     let matched = false;
-    
+
     // Try to find a match using aliases
     for (const alias of config.aliases) {
       const normalizedAlias = normalizeHeader(alias);
       const matchingHeader = normalizedFileHeaders.find(fh => fh.normalized === normalizedAlias);
-      
+
       if (matchingHeader) {
         headerMap[schemaField] = matchingHeader.original;
         matched = true;
         break;
       }
     }
-    
+
     if (!matched && config.required) {
       missing.push(schemaField);
     }
   });
-  
+
   // Find unmapped headers (columns we'll ignore)
   const mappedOriginalHeaders = Object.values(headerMap);
   unmapped.push(...fileHeaders.filter(header => !mappedOriginalHeaders.includes(header)));
-  
+
   return { headerMap, unmapped, missing };
 }
 
-const upload = multer({ 
+const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.oasis.opendocument.spreadsheet'];
     const allowedExtensions = ['.csv', '.xlsx', '.xls', '.odt'];
-    
+
     if (allowedTypes.includes(file.mimetype) || allowedExtensions.some(ext => file.originalname.toLowerCase().endsWith(ext))) {
       cb(null, true);
     } else {
@@ -107,10 +107,10 @@ const upload = multer({
 function parseCSV(csvContent: string): Array<Record<string, string>> {
   const lines = csvContent.split('\n').filter(line => line.trim());
   if (lines.length === 0) return [];
-  
+
   const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
   const rows = lines.slice(1);
-  
+
   return rows.map(row => {
     const values = row.split(',').map(v => v.trim().replace(/"/g, ''));
     const item: Record<string, string> = {};
@@ -125,31 +125,31 @@ function parseSpreadsheet(buffer: Buffer, filename: string): Array<Record<string
   try {
     // Use XLSX library to parse Excel and ODF files
     const workbook = XLSX.read(buffer, { type: 'buffer' });
-    
+
     // Get the first worksheet (or find "Master Inventory" sheet)
     let worksheetName = workbook.SheetNames[0];
     if (workbook.SheetNames.includes('Master Inventory')) {
       worksheetName = 'Master Inventory';
     }
-    
+
     const worksheet = workbook.Sheets[worksheetName];
     if (!worksheet) {
       throw new Error(`Worksheet ${worksheetName} not found`);
     }
-    
+
     // Convert to JSON with header row as keys
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-    
+
     if (jsonData.length === 0) return [];
-    
+
     // Find the header row (skip title rows)
     let headerRowIndex = 0;
     let headers: string[] = [];
-    
+
     // Look through first few rows to find the actual header row
     for (let i = 0; i < Math.min(5, jsonData.length); i++) {
       const potentialHeaders = jsonData[i].map((h: any) => String(h || '').trim());
-      
+
       // Check if this looks like a header row (multiple non-empty values)
       const nonEmptyHeaders = potentialHeaders.filter(h => h && h !== 'Master Inventory');
       if (nonEmptyHeaders.length >= 2) {
@@ -158,15 +158,15 @@ function parseSpreadsheet(buffer: Buffer, filename: string): Array<Record<string
         break;
       }
     }
-    
+
     if (headers.length === 0) {
       headers = jsonData[0].map((h: any) => String(h || '').trim());
     }
-    
-    const dataRows = jsonData.slice(headerRowIndex + 1).filter(row => 
+
+    const dataRows = jsonData.slice(headerRowIndex + 1).filter(row =>
       row && row.length > 0 && row.some(cell => String(cell || '').trim())
     );
-    
+
     return dataRows.map(row => {
       const item: Record<string, string> = {};
       headers.forEach((header, colIndex) => {
@@ -184,17 +184,17 @@ function parseSpreadsheet(buffer: Buffer, filename: string): Array<Record<string
 
 function generateCSV(items: any[]): string {
   if (items.length === 0) return '';
-  
+
   const headers = Object.keys(items[0]);
   const csvHeaders = headers.join(',');
-  
-  const csvRows = items.map(item => 
+
+  const csvRows = items.map(item =>
     headers.map(header => {
       const value = item[header] || '';
       return `"${value.toString().replace(/"/g, '""')}"`;
     }).join(',')
   );
-  
+
   return [csvHeaders, ...csvRows].join('\n');
 }
 
@@ -226,10 +226,13 @@ function generateDefaultBinsData() {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get all items
   app.get("/api/items", async (req, res) => {
+    console.log("Fetching all items");
     try {
       const items = await storage.getAllItems();
+      console.log(`Retrieved ${items.length} items from database`);
       res.json(items);
     } catch (error) {
+      console.error("Error fetching items:", error);
       res.status(500).json({ message: "Failed to fetch items" });
     }
   });
@@ -291,11 +294,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const bin = await storage.getBinById(id);
-      
+
       if (!bin) {
         return res.status(404).json({ message: "Bin not found" });
       }
-      
+
       res.json(bin);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch bin" });
@@ -306,20 +309,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/bins", async (req, res) => {
     try {
       const validatedData = insertBinSchema.parse(req.body);
-      
+
       // Check if bin name already exists
       const existingBin = await storage.getBinByName(validatedData.name);
       if (existingBin) {
         return res.status(400).json({ message: "Bin name already exists" });
       }
-      
+
       const bin = await storage.createBin(validatedData);
       res.status(201).json(bin);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid bin data", 
-          errors: error.errors 
+        return res.status(400).json({
+          message: "Invalid bin data",
+          errors: error.errors
         });
       }
       res.status(500).json({ message: "Failed to create bin" });
@@ -331,13 +334,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const validatedData = updateBinSchema.parse(req.body);
-      
+
       // Get current bin info
       const currentBin = await storage.getBinById(id);
       if (!currentBin) {
         return res.status(404).json({ message: "Bin not found" });
       }
-      
+
       // If updating name, check constraints
       if (validatedData.name && validatedData.name !== currentBin.name) {
         // Check if new name already exists
@@ -345,29 +348,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (existingBin && existingBin.id !== id) {
           return res.status(400).json({ message: "Bin name already exists" });
         }
-        
+
         // Option A: Forbid renaming when items exist in the bin
         const itemsInBin = await storage.getItemsByBin(currentBin.name);
         if (itemsInBin.length > 0) {
-          return res.status(400).json({ 
+          return res.status(400).json({
             message: "Cannot rename bin with existing items. Move items to another bin first.",
             itemCount: itemsInBin.length
           });
         }
       }
-      
+
       const bin = await storage.updateBin(id, validatedData);
-      
+
       if (!bin) {
         return res.status(404).json({ message: "Bin not found" });
       }
-      
+
       res.json(bin);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid bin data", 
-          errors: error.errors 
+        return res.status(400).json({
+          message: "Invalid bin data",
+          errors: error.errors
         });
       }
       res.status(500).json({ message: "Failed to update bin" });
@@ -378,28 +381,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/bins/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      
+
       // Check if bin exists first
       const existingBin = await storage.getBinById(id);
       if (!existingBin) {
         return res.status(404).json({ message: "Bin not found" });
       }
-      
+
       // Check if bin is in use
       const itemsInBin = await storage.getItemsByBin(existingBin.name);
       if (itemsInBin.length > 0) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: "Cannot delete bin with items. Move items to another bin first.",
           itemCount: itemsInBin.length
         });
       }
-      
+
       const deleted = await storage.deleteBin(id);
-      
+
       if (!deleted) {
         return res.status(404).json({ message: "Bin not found" });
       }
-      
+
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete bin" });
@@ -411,11 +414,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const item = await storage.getItemById(id);
-      
+
       if (!item) {
         return res.status(404).json({ message: "Item not found" });
       }
-      
+
       res.json(item);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch item" });
@@ -424,15 +427,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Create item
   app.post("/api/items", async (req, res) => {
+    console.log("Creating new item");
     try {
       const validatedData = insertItemSchema.parse(req.body);
+      console.log("Validated item data:", validatedData);
       const item = await storage.createItem(validatedData);
+      console.log("Item created successfully:", item.id);
       res.status(201).json(item);
     } catch (error) {
+      console.error("Error creating item:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid item data", 
-          errors: error.errors 
+        return res.status(400).json({
+          message: "Invalid item data",
+          errors: error.errors
         });
       }
       res.status(500).json({ message: "Failed to create item" });
@@ -444,19 +451,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const validatedData = updateItemSchema.parse(req.body);
-      
+
       const item = await storage.updateItem(id, validatedData);
-      
+
       if (!item) {
         return res.status(404).json({ message: "Item not found" });
       }
-      
+
       res.json(item);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid item data", 
-          errors: error.errors 
+        return res.status(400).json({
+          message: "Invalid item data",
+          errors: error.errors
         });
       }
       res.status(500).json({ message: "Failed to update item" });
@@ -468,11 +475,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteItem(id);
-      
+
       if (!deleted) {
         return res.status(404).json({ message: "Item not found" });
       }
-      
+
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete item" });
@@ -484,25 +491,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const soldData = markSoldSchema.parse(req.body);
-      
+
       // Check if item exists and is not already sold
       const existingItem = await storage.getItemById(id);
       if (!existingItem) {
         return res.status(404).json({ message: "Item not found" });
       }
-      
+
       if (existingItem.status === "sold") {
         return res.status(400).json({ message: "Item is already marked as sold" });
       }
-      
+
       const item = await storage.markAsSold(id, soldData);
-      
+
       res.json(item);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid sold data", 
-          errors: error.errors 
+        return res.status(400).json({
+          message: "Invalid sold data",
+          errors: error.errors
         });
       }
       res.status(500).json({ message: "Failed to mark item as sold" });
@@ -513,7 +520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/items/bulk", async (req, res) => {
     try {
       const { items } = req.body;
-      
+
       if (!items || !Array.isArray(items)) {
         return res.status(400).json({ message: "Items array is required" });
       }
@@ -546,23 +553,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Upload spreadsheet (CSV, Excel, ODF)
   app.post("/api/items/upload", upload.single('csv'), async (req, res) => {
+    console.log("Upload endpoint called");
     try {
       if (!req.file) {
+        console.log("No file uploaded");
         return res.status(400).json({ message: "No file uploaded" });
       }
 
+      console.log(`File uploaded: ${req.file.originalname}, size: ${req.file.size}, mimetype: ${req.file.mimetype}`);
+
       let parsedData: Array<Record<string, string>>;
-      
+
       // Determine file type and parse accordingly
       if (req.file.originalname.toLowerCase().endsWith('.csv')) {
+        console.log("Parsing as CSV");
         const csvContent = req.file.buffer.toString('utf-8');
         parsedData = parseCSV(csvContent);
       } else {
+        console.log("Parsing as spreadsheet");
         // Handle Excel (.xlsx, .xls) and OpenDocument (.odt) files
         parsedData = parseSpreadsheet(req.file.buffer, req.file.originalname);
       }
-      
+
+      console.log(`Parsed ${parsedData.length} rows from file`);
+
       if (parsedData.length === 0) {
+        console.log("File is empty or invalid");
         return res.status(400).json({ message: "File is empty or invalid" });
       }
 
@@ -571,9 +587,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get headers from the first row of data
       const fileHeaders = parsedData.length > 0 ? Object.keys(parsedData[0]) : [];
+      console.log(`File headers: ${fileHeaders.join(', ')}`);
       const { headerMap, unmapped, missing } = mapHeaders(fileHeaders);
-      
-      
+
+      console.log(`Header mapping: ${JSON.stringify(headerMap)}`);
+      console.log(`Missing required fields: ${missing.join(', ')}`);
+      console.log(`Unmapped fields: ${unmapped.join(', ')}`);
+
       // Check if we're missing required fields
       if (missing.length > 0) {
         return res.status(400).json({
@@ -603,6 +623,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
 
           if (!itemData.description || !itemData.binLocation) {
+            console.log(`Row ${index + 2}: Missing required fields`);
             errors.push(`Row ${index + 2}: Missing required fields (description and bin_location)`);
             continue;
           }
@@ -610,11 +631,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const validatedItem = insertItemSchema.parse(itemData);
           items.push(validatedItem);
         } catch (error) {
+          console.log(`Row ${index + 2}: Validation error - ${error instanceof Error ? error.message : 'Unknown error'}`);
           errors.push(`Row ${index + 2}: Invalid data format - ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
 
+      console.log(`Attempting to create ${items.length} items in database`);
       const createdItems = await storage.createMultipleItems(items);
+      console.log(`Successfully created ${createdItems.length} items`);
 
       res.json({
         success: true,
@@ -624,7 +648,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Upload error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to process CSV upload",
         error: error instanceof Error ? error.message : 'Unknown error'
       });
@@ -637,14 +661,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const format = req.query.format as string || 'csv';
       const binLocation = req.query.bin as string;
       const category = req.query.category as string;
-      
+
       let items = await storage.getAllItems();
-      
+
       // Apply filters
       if (binLocation) {
         items = items.filter(item => item.binLocation === binLocation);
       }
-      
+
       if (category) {
         items = items.filter(item => item.category === category);
       }
@@ -665,13 +689,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Health check endpoint
+  app.get("/api/health", async (req, res) => {
+    try {
+      console.log("Health check called");
+      // Test database connection
+      const testQuery = await storage.getAllItems();
+      console.log(`Database connection OK, found ${testQuery.length} items`);
+      res.json({
+        status: "healthy",
+        database: "connected",
+        itemCount: testQuery.length,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Health check failed:", error);
+      res.status(500).json({
+        status: "unhealthy",
+        database: "disconnected",
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   // Seed default bins
   app.post("/api/bins/seed", async (req, res) => {
     try {
       // Check if bins already exist
       const existingBins = await storage.getAllBins();
       if (existingBins.length > 0) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: "Bins already exist. Clear existing bins first or use individual bin creation.",
           existingCount: existingBins.length
         });
