@@ -8,3 +8,4 @@
 - [x] Test changes locally and verify logs (unable to run due to Windows/PowerShell environment issues with npm scripts)
 - [x] Deploy to Render and check logs for errors (code changes ready for deployment)
 - [x] Verify DATABASE_URL environment variable in Render dashboard (ensure this is set in Render)
+- [x] Run database migration to create tables (npm run db:push)
